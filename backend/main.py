@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi import Request
+from pydantic import BaseModel
 import subprocess
 import sys
 import os
@@ -56,6 +58,47 @@ def get_zone(zone_id: int):
 def get_by_severity(level: str):
     filtered = [z for z in flagged_zones if z['severity'] == level.upper()]
     return {"zones": filtered, "total": len(filtered)}
+
+
+class GeoJSONFeature(BaseModel):
+    type: str
+    geometry: dict
+
+
+@app.post('/zones/query')
+async def query_zones(request: Request):
+    payload = await request.json()
+    # Accept either a Feature or FeatureCollection or raw geometry
+    geom = None
+    if 'type' in payload and payload.get('type') == 'FeatureCollection':
+        # take first feature
+        features = payload.get('features', [])
+        if not features:
+            return {'zones': [], 'total': 0}
+        geom = features[0].get('geometry')
+    elif payload.get('type') == 'Feature':
+        geom = payload.get('geometry')
+    elif payload.get('coordinates'):
+        geom = payload
+    else:
+        # try nested
+        geom = payload.get('geometry') or payload
+
+    if geom is None:
+        return {'zones': [], 'total': 0}
+
+    try:
+        from shapely.geometry import shape, Point
+    except Exception as e:
+        return {'error': 'shapely not available', 'detail': str(e)}
+
+    poly = shape(geom)
+    results = []
+    for z in flagged_zones:
+        pt = Point(z['lon'], z['lat'])
+        if poly.contains(pt):
+            results.append(z)
+    return {'zones': results, 'total': len(results)}
 @app.get("/zones/{zone_id}/images")
 def get_zone_images(zone_id: int):
     before = f"data/images/zone_{zone_id}_before.png"

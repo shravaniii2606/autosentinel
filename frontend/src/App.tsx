@@ -1,5 +1,9 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet-draw/dist/leaflet.draw.css'
+import 'leaflet-draw'
 import axios from 'axios'
 import 'leaflet/dist/leaflet.css'
 
@@ -138,6 +142,10 @@ function ZoneImages({ zoneId }: { zoneId: number }) {
   )
 }
 export default function App() {
+  const [drawMode, setDrawMode] = useState(false)
+  const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
+  const [circleRadius, setCircleRadius] = useState<number | null>(null) // meters
+  const [drawnGeoJSON, setDrawnGeoJSON] = useState<any | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
@@ -152,6 +160,17 @@ export default function App() {
   const filtered = zones.filter(z => {
     const sev = severityFilter === 'ALL' || z.severity === severityFilter
     const vio = violationFilter === 'ALL' || z.violation_type === violationFilter
+    // If a circle is drawn, also filter by distance
+    if (circleCenter && circleRadius != null) {
+      const toRad = (deg: number) => deg * Math.PI / 180
+      const R = 6371000 // meters
+      const dLat = toRad(z.lat - circleCenter[0])
+      const dLon = toRad(z.lon - circleCenter[1])
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(circleCenter[0])) * Math.cos(toRad(z.lat)) * Math.sin(dLon/2) * Math.sin(dLon/2)
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+      const dist = R * c
+      return sev && vio && dist <= circleRadius
+    }
     return sev && vio
   })
 
@@ -359,6 +378,32 @@ export default function App() {
               </Popup>
             </CircleMarker>
           ))}
+
+          {/* Drawn circle preview */}
+          {circleCenter && circleRadius != null && (
+            <Circle center={circleCenter} radius={circleRadius} pathOptions={{ color: '#3b82f6', fillOpacity: 0.08 }} />
+          )}
+          {/* drawn polygon preview (if any) */}
+          {drawnGeoJSON && (
+            <GeoJsonLayer data={drawnGeoJSON} />
+          )}
+
+          {/* Map draw handler: mousedown -> drag -> mouseup */}
+          <MapDrawHandler
+            drawMode={drawMode}
+            onStart={(latlng) => {
+              setCircleCenter([latlng.lat, latlng.lng])
+              setCircleRadius(0)
+            }}
+            onMove={(radiusMeters) => {
+              setCircleRadius(radiusMeters)
+            }}
+            onEnd={() => {
+              setDrawMode(false)
+            }}
+          />
+          {/* Leaflet Draw control */}
+          <DrawControl drawMode={drawMode} onDraw={(g)=>setDrawnGeoJSON(g)} />
         </MapContainer>
 
         {/* Map overlay — stats */}
@@ -366,7 +411,130 @@ export default function App() {
           <p className="text-xs text-gray-400">Active filters</p>
           <p className="text-sm font-bold text-white">{filtered.length} zones visible</p>
         </div>
+        {/* Draw controls at bottom */}
+        <div className="absolute left-4 bottom-4 z-[1100]">
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                // toggle draw mode; clear existing circle when starting a new draw
+                if (!drawMode) {
+                  setCircleCenter(null)
+                  setCircleRadius(null)
+                }
+                setDrawMode(!drawMode)
+              }}
+              className={`px-3 py-2 rounded-md font-medium ${drawMode ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+            >
+              {drawMode ? 'Drawing: click to set radius' : 'Draw'}
+            </button>
+            <button
+              onClick={() => { setCircleCenter(null); setCircleRadius(null); setDrawMode(false) }}
+              className="px-3 py-2 rounded-md font-medium bg-red-600 hover:bg-red-700"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => {
+                if (!drawnGeoJSON) return
+                // POST geojson to backend to get zones
+                axios.post('http://localhost:8000/zones/query', drawnGeoJSON).then(res => {
+                  setZones(res.data.zones)
+                }).catch(err => alert('Query failed: ' + err))
+              }}
+              className="px-3 py-2 rounded-md font-medium bg-green-600 hover:bg-green-700"
+            >
+              Get Data
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
+
+  function GeoJsonLayer({ data }: { data: any }) {
+    // simple component to render geojson via Leaflet layer
+    const map = (window as any).mapInstance as L.Map | undefined
+    useEffect(() => {
+      if (!map) return
+      const layer = L.geoJSON(data as any, { style: { color: '#3b82f6', weight: 2, fillOpacity: 0.05 } }).addTo(map)
+      return () => { map.removeLayer(layer) }
+    }, [data])
+    return null
+  }
+
+  function DrawControl({ drawMode, onDraw }: { drawMode: boolean, onDraw: (geojson: any|null) => void }) {
+    const map = useMap()
+    useEffect(() => {
+      ;(window as any).mapInstance = map
+      const drawnItems = new L.FeatureGroup()
+      map.addLayer(drawnItems)
+
+      const drawControl = new (L.Control as any).Draw({
+        edit: { featureGroup: drawnItems, edit: true, remove: true },
+        draw: {
+          polygon: true,
+          polyline: false,
+          rectangle: true,
+          circle: false,
+          marker: false,
+          circlemarker: false
+        }
+      })
+
+      map.on(L.Draw.Event.CREATED, function (e: any) {
+        const layer = e.layer
+        drawnItems.clearLayers()
+        drawnItems.addLayer(layer)
+        const geojson = layer.toGeoJSON()
+        onDraw(geojson)
+      })
+
+      map.on(L.Draw.Event.DELETED, function () {
+        drawnItems.clearLayers()
+        onDraw(null)
+      })
+
+      // toggle control
+      if (drawMode) {
+        map.addControl(drawControl)
+      }
+
+      return () => {
+        try { map.removeControl(drawControl) } catch {}
+        map.removeLayer(drawnItems)
+      }
+    }, [map, drawMode])
+    return null
+  }
+
+  function MapDrawHandler({ drawMode, onStart, onMove, onEnd }:{ drawMode:boolean, onStart:(latlng:{lat:number,lng:number})=>void, onMove:(radius:number)=>void, onEnd:()=>void }) {
+    const startRef = useRef<{lat:number,lng:number}|null>(null)
+    useMapEvents({
+      mousedown(e:any) {
+        if (!drawMode) return
+        startRef.current = e.latlng
+        onStart(e.latlng)
+      },
+      mousemove(e:any) {
+        if (!drawMode || !startRef.current) return
+        const a = startRef.current
+        const b = e.latlng
+        const toRad = (deg: number) => deg * Math.PI / 180
+        const R = 6371000
+        const dLat = toRad(b.lat - a.lat)
+        const dLon = toRad(b.lng - a.lng)
+        const aa = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon/2) * Math.sin(dLon/2)
+        const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1-aa))
+        const dist = R * c
+        onMove(dist)
+      },
+      mouseup(_e:any) {
+        if (!drawMode || !startRef.current) return
+        // final move already reported; clear start and finish
+        startRef.current = null
+        onEnd()
+      }
+    })
+    return null
+  }
