@@ -1,11 +1,10 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet-draw/dist/leaflet.draw.css'
-import 'leaflet-draw'
 import axios from 'axios'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet-draw/dist/leaflet.draw.css'
+import 'leaflet-draw'
 
 interface Zone {
   id: number
@@ -146,6 +145,7 @@ export default function App() {
   const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
   const [circleRadius, setCircleRadius] = useState<number | null>(null) // meters
   const [drawnGeoJSON, setDrawnGeoJSON] = useState<any | null>(null)
+  const [circleDrawn, setCircleDrawn] = useState(false)
   const [zones, setZones] = useState<Zone[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
@@ -409,7 +409,21 @@ export default function App() {
             }}
           />
           {/* Leaflet Draw control */}
-          <DrawControl drawMode={drawMode} onDraw={(g)=>setDrawnGeoJSON(g)} />
+          <DrawControl
+            drawMode={drawMode}
+            onDraw={(g)=>{
+              setDrawnGeoJSON(g)
+              setCircleCenter(null)
+              setCircleRadius(null)
+              setCircleDrawn(false)
+            }}
+            onCircleDraw={(center, radius) => {
+              setDrawnGeoJSON(null)
+              setCircleCenter(center)
+              setCircleRadius(radius)
+              setCircleDrawn(true)
+            }}
+          />
         </MapContainer>
 
         {/* Map overlay — stats */}
@@ -459,11 +473,38 @@ export default function App() {
             >
               Clear
             </button>
+            {circleCenter && circleRadius != null && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    setCircleRadius(prev => Math.max(50, (prev || 0) - 50))
+                    setCircleDrawn(true)
+                  }}
+                  className="px-3 py-2 rounded-md font-medium bg-gray-700 hover:bg-gray-600"
+                >
+                  −
+                </button>
+                <span className="px-3 py-2 rounded-md bg-gray-800 text-xs font-medium">
+                  {(circleRadius/1000).toFixed(2)} km
+                </span>
+                <button
+                  onClick={() => {
+                    setCircleRadius(prev => (prev || 0) + 50)
+                    setCircleDrawn(true)
+                  }}
+                  className="px-3 py-2 rounded-md font-medium bg-gray-700 hover:bg-gray-600"
+                >
+                  +
+                </button>
+              </div>
+            )}
             <button
               onClick={() => {
-                if (!drawnGeoJSON) return
-                // POST geojson to backend to get zones
-                axios.post('http://localhost:8000/zones/query', drawnGeoJSON).then(res => {
+                const payload = circleCenter && circleRadius != null
+                  ? (window as any).L.circle(circleCenter, { radius: circleRadius }).toGeoJSON()
+                  : drawnGeoJSON
+                if (!payload) return
+                axios.post('http://localhost:8000/zones/query', payload).then(res => {
                   setZones(res.data.zones)
                 }).catch(err => alert('Query failed: ' + err))
               }}
@@ -480,41 +521,61 @@ export default function App() {
 
   function GeoJsonLayer({ data }: { data: any }) {
     // simple component to render geojson via Leaflet layer
-    const map = (window as any).mapInstance as L.Map | undefined
+    const map = (window as any).mapInstance as any
     useEffect(() => {
       if (!map) return
-      const layer = L.geoJSON(data as any, { style: { color: '#3b82f6', weight: 2, fillOpacity: 0.05 } }).addTo(map)
+      const layer = (window as any).L.geoJSON(data as any, { style: { color: '#3b82f6', weight: 2, fillOpacity: 0.05 } }).addTo(map)
       return () => { map.removeLayer(layer) }
     }, [data])
     return null
   }
 
+<<<<<<< Updated upstream
   function DrawControl({ drawMode, onDraw }: { drawMode: 'none'|'circle'|'pen'|'rectangle', onDraw: (geojson: any|null) => void }) {
+=======
+  function DrawControl({ drawMode, onDraw, onCircleDraw }: { drawMode: boolean, onDraw: (geojson: any|null) => void, onCircleDraw: (center:[number, number], radius:number) => void }) {
+>>>>>>> Stashed changes
     const map = useMap()
     useEffect(() => {
       ;(window as any).mapInstance = map
-      const drawnItems = new L.FeatureGroup()
+      const drawnItems = new (window as any).L.FeatureGroup()
       map.addLayer(drawnItems)
 
+<<<<<<< Updated upstream
       const drawControl = new (L.Control as any).Draw({
         // Use option objects instead of booleans for nested option groups.
         // Passing `true` previously caused leaflet-draw to attempt to set
         // properties on a boolean (TypeError). Empty objects enable defaults.
         edit: { featureGroup: drawnItems, edit: {}, remove: {} },
+=======
+      const drawControl = new (((window as any).L.Control) as any).Draw({
+        edit: { featureGroup: drawnItems },
+>>>>>>> Stashed changes
         draw: {
           polygon: {},
           polyline: false,
+<<<<<<< Updated upstream
           rectangle: {},
           circle: false,
+=======
+          rectangle: true,
+          circle: true,
+>>>>>>> Stashed changes
           marker: false,
           circlemarker: false
+        },
+        circle: {
+          shapeOptions: { color: '#3b82f6', weight: 2, fillOpacity: 0.1 },
+          showRadius: true,
+          metric: true
         }
       })
 
-      map.on(L.Draw.Event.CREATED, function (e: any) {
+      map.on(((window as any).L.Draw.Event).CREATED, function (e: any) {
         const layer = e.layer
         drawnItems.clearLayers()
         drawnItems.addLayer(layer)
+<<<<<<< Updated upstream
         // If user drew a rectangle, trigger backend pipeline for that bbox
         const geojson = layer.toGeoJSON()
         const type = e.layerType || (geojson && geojson.geometry && geojson.geometry.type)
@@ -556,9 +617,19 @@ export default function App() {
           }
         }
         onDraw(geojson)
+=======
+        if (layer.getRadius && layer.getLatLng) {
+          const center = layer.getLatLng()
+          const radius = layer.getRadius()
+          onCircleDraw([center.lat, center.lng], radius)
+        } else {
+          const geojson = layer.toGeoJSON()
+          onDraw(geojson)
+        }
+>>>>>>> Stashed changes
       })
 
-      map.on(L.Draw.Event.DELETED, function () {
+      map.on(((window as any).L.Draw.Event).DELETED, function () {
         drawnItems.clearLayers()
         onDraw(null)
       })
