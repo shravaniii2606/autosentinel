@@ -9,15 +9,19 @@ import os
 import sys
 import json
 
-with open('data/flagged_zones.json') as f:
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+with open(os.path.join(BASE_DIR, 'data/flagged_zones.json')) as f:
     zones = json.load(f)
 
-# Get zone ID from argument or default to first
 zone_id = int(sys.argv[1]) if len(sys.argv) > 1 else zones[0]['id']
-zone = next(z for z in zones if z['id'] == zone_id)
+zone = next((z for z in zones if z['id'] == zone_id), zones[0])
 
+output_path = os.path.join(BASE_DIR, f"data/report_zone_{zone['id']}.pdf")
 
-output_path = f"data/report_zone_{zone['id']}.pdf"
+before_path = os.path.join(BASE_DIR, f"data/images/zone_{zone['id']}_before.png")
+after_path = os.path.join(BASE_DIR, f"data/images/zone_{zone['id']}_after.png")
 doc = SimpleDocTemplate(output_path, pagesize=A4)
 styles = getSampleStyleSheet()
 story = []
