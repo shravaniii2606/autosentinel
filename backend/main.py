@@ -9,6 +9,9 @@ import sys
 import os
 import json
 import os
+import uuid
+import threading
+import time
 
 app = FastAPI()
 app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), '..', 'data', 'images')), name="images")
@@ -26,6 +29,10 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'flagged_zones
 
 with open(DATA_PATH) as f:
     flagged_zones = json.load(f)
+
+    # Simple in-memory job tracker
+    JOBS = {}
+
 
 @app.get("/")
 def root():
@@ -130,3 +137,52 @@ def get_zone_report(zone_id: int):
             filename=f'autosentinel_report_zone_{zone_id}.pdf'
         )
     return {"error": "Report generation failed"}
+
+
+class BBox(BaseModel):
+    minx: float
+    miny: float
+    maxx: float
+    maxy: float
+
+
+def _run_pipeline(job_id, bbox):
+    job_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'jobs', job_id)
+    os.makedirs(job_dir, exist_ok=True)
+    try:
+        cmd = [sys.executable, os.path.join(os.path.dirname(__file__), '..', 'notebooks', 'run_pipeline.py'),
+               str(bbox['minx']), str(bbox['miny']), str(bbox['maxx']), str(bbox['maxy']), job_dir]
+        JOBS[job_id]['status'] = 'running'
+        subprocess.check_call(cmd)
+        JOBS[job_id]['status'] = 'done'
+    except Exception as e:
+        JOBS[job_id]['status'] = 'error'
+        JOBS[job_id]['error'] = str(e)
+
+
+@app.post('/process_bbox')
+def process_bbox(bbox: BBox):
+    # enqueue job and run in background
+    job_id = str(uuid.uuid4())
+    JOBS[job_id] = {'status': 'queued', 'bbox': bbox.dict()}
+    thread = threading.Thread(target=_run_pipeline, args=(job_id, bbox.dict()), daemon=True)
+    thread.start()
+    return {'job_id': job_id}
+
+
+@app.get('/jobs/{job_id}')
+def get_job(job_id: str):
+    job = JOBS.get(job_id)
+    if not job:
+        return {'error': 'job not found'}
+    # if done and scored geojson exists, return path
+    job_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'jobs', job_id)
+    scored = os.path.join(job_dir, 'scored_zones.geojson')
+    if job.get('status') == 'done' and os.path.exists(scored):
+        try:
+            with open(scored) as f:
+                data = json.load(f)
+        except Exception:
+            data = None
+        return {'status': job['status'], 'result': data}
+    return {'status': job['status']}
