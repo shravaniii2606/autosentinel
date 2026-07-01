@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, Circle, useMapEvents } from 'react-leaflet'
 import axios from 'axios'
 import 'leaflet/dist/leaflet.css'
 
@@ -138,6 +138,9 @@ function ZoneImages({ zoneId }: { zoneId: number }) {
   )
 }
 export default function App() {
+  const [drawMode, setDrawMode] = useState(false)
+  const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
+  const [circleRadius, setCircleRadius] = useState<number | null>(null) // meters
   const [zones, setZones] = useState<Zone[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
@@ -152,6 +155,17 @@ export default function App() {
   const filtered = zones.filter(z => {
     const sev = severityFilter === 'ALL' || z.severity === severityFilter
     const vio = violationFilter === 'ALL' || z.violation_type === violationFilter
+    // If a circle is drawn, also filter by distance
+    if (circleCenter && circleRadius != null) {
+      const toRad = (deg: number) => deg * Math.PI / 180
+      const R = 6371000 // meters
+      const dLat = toRad(z.lat - circleCenter[0])
+      const dLon = toRad(z.lon - circleCenter[1])
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(circleCenter[0])) * Math.cos(toRad(z.lat)) * Math.sin(dLon/2) * Math.sin(dLon/2)
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+      const dist = R * c
+      return sev && vio && dist <= circleRadius
+    }
     return sev && vio
   })
 
@@ -359,6 +373,33 @@ export default function App() {
               </Popup>
             </CircleMarker>
           ))}
+
+          {/* Drawn circle preview */}
+          {circleCenter && circleRadius != null && (
+            <Circle center={circleCenter} radius={circleRadius} pathOptions={{ color: '#3b82f6', fillOpacity: 0.08 }} />
+          )}
+
+          {/* Map click handler for draw mode */}
+          <MapClickHandler
+            drawMode={drawMode}
+            onSetCenter={(latlng) => {
+              // If no center yet, set center; if center exists, compute radius as distance
+              if (!circleCenter) {
+                setCircleCenter([latlng.lat, latlng.lng])
+                setCircleRadius(null)
+              } else {
+                const toRad = (deg: number) => deg * Math.PI / 180
+                const R = 6371000
+                const dLat = toRad(latlng.lat - circleCenter[0])
+                const dLon = toRad(latlng.lng - circleCenter[1])
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(circleCenter[0])) * Math.cos(toRad(latlng.lat)) * Math.sin(dLon/2) * Math.sin(dLon/2)
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+                const dist = R * c
+                setCircleRadius(dist)
+                setDrawMode(false)
+              }
+            }}
+          />
         </MapContainer>
 
         {/* Map overlay — stats */}
@@ -366,7 +407,41 @@ export default function App() {
           <p className="text-xs text-gray-400">Active filters</p>
           <p className="text-sm font-bold text-white">{filtered.length} zones visible</p>
         </div>
+        {/* Draw controls at bottom */}
+        <div className="absolute left-4 bottom-4 z-[1100]">
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                // toggle draw mode; clear existing circle when starting a new draw
+                if (!drawMode) {
+                  setCircleCenter(null)
+                  setCircleRadius(null)
+                }
+                setDrawMode(!drawMode)
+              }}
+              className={`px-3 py-2 rounded-md font-medium ${drawMode ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+            >
+              {drawMode ? 'Drawing: click to set radius' : 'Draw'}
+            </button>
+            <button
+              onClick={() => { setCircleCenter(null); setCircleRadius(null); setDrawMode(false) }}
+              className="px-3 py-2 rounded-md font-medium bg-red-600 hover:bg-red-700"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
+
+  function MapClickHandler({ drawMode, onSetCenter }: { drawMode: boolean, onSetCenter: (latlng: {lat:number, lng:number}) => void }) {
+    useMapEvents({
+      click(e) {
+        if (!drawMode) return
+        onSetCenter(e.latlng)
+      }
+    })
+    return null
+  }
