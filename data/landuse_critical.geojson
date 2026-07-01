@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "landuse_critical",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "landuse": "forest", "natural": "wood" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 72.79, 19.47 ], [ 72.83, 19.47 ], [ 72.83, 19.51 ], [ 72.79, 19.51 ], [ 72.79, 19.47 ] ] ] } },
+{ "type": "Feature", "properties": { "landuse": null, "natural": "wetland" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 72.88, 19.43 ], [ 72.91, 19.43 ], [ 72.91, 19.46 ], [ 72.88, 19.46 ], [ 72.88, 19.43 ] ] ] } },
+{ "type": "Feature", "properties": { "landuse": "farmland", "natural": null }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 72.84, 19.35 ], [ 72.88, 19.35 ], [ 72.88, 19.38 ], [ 72.84, 19.38 ], [ 72.84, 19.35 ] ] ] } }
+]
+}
