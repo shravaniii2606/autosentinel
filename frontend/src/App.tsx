@@ -142,7 +142,7 @@ function ZoneImages({ zoneId }: { zoneId: number }) {
   )
 }
 export default function App() {
-  const [drawMode, setDrawMode] = useState(false)
+  const [drawMode, setDrawMode] = useState<'none'|'circle'|'pen'>('none')
   const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
   const [circleRadius, setCircleRadius] = useState<number | null>(null) // meters
   const [drawnGeoJSON, setDrawnGeoJSON] = useState<any | null>(null)
@@ -399,7 +399,13 @@ export default function App() {
               setCircleRadius(radiusMeters)
             }}
             onEnd={() => {
-              setDrawMode(false)
+              setDrawMode('none')
+            }}
+            onFinish={(geojson) => {
+              // receive polygon GeoJSON from freehand pen
+              setDrawnGeoJSON(geojson)
+              // exit draw mode
+              setDrawMode('none')
             }}
           />
           {/* Leaflet Draw control */}
@@ -416,19 +422,39 @@ export default function App() {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                // toggle draw mode; clear existing circle when starting a new draw
-                if (!drawMode) {
+                // toggle pen draw mode; clear previous shapes
+                if (drawMode !== 'pen') {
                   setCircleCenter(null)
                   setCircleRadius(null)
                 }
-                setDrawMode(!drawMode)
+                setDrawMode(drawMode === 'pen' ? 'none' : 'pen')
               }}
-              className={`px-3 py-2 rounded-md font-medium ${drawMode ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+              className={`px-3 py-2 rounded-md font-medium ${drawMode === 'pen' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
             >
-              {drawMode ? 'Drawing: click to set radius' : 'Draw'}
+              {drawMode === 'pen' ? 'Drawing (pen) — drag to draw' : 'Pen'}
             </button>
             <button
-              onClick={() => { setCircleCenter(null); setCircleRadius(null); setDrawMode(false) }}
+              onClick={() => {
+                // reset draw UI
+                setCircleCenter(null); setCircleRadius(null); setDrawMode('none')
+                setDrawnGeoJSON(null)
+                setSelectedZone(null)
+                setSeverityFilter('ALL')
+                setViolationFilter('ALL')
+                // clear any pen-drawn layers
+                try {
+                  const g = (window as any).drawnLayerGroup
+                  if (g && g.clearLayers) g.clearLayers()
+                } catch {}
+
+                // reload original zones + summary from backend
+                axios.get('http://localhost:8000/zones')
+                  .then(res => setZones(res.data.zones))
+                  .catch(() => {})
+                axios.get('http://localhost:8000/zones/summary')
+                  .then(res => setSummary(res.data))
+                  .catch(() => {})
+              }}
               className="px-3 py-2 rounded-md font-medium bg-red-600 hover:bg-red-700"
             >
               Clear
@@ -463,7 +489,7 @@ export default function App() {
     return null
   }
 
-  function DrawControl({ drawMode, onDraw }: { drawMode: boolean, onDraw: (geojson: any|null) => void }) {
+  function DrawControl({ drawMode, onDraw }: { drawMode: 'none'|'circle'|'pen'|'rectangle', onDraw: (geojson: any|null) => void }) {
     const map = useMap()
     useEffect(() => {
       ;(window as any).mapInstance = map
@@ -471,11 +497,14 @@ export default function App() {
       map.addLayer(drawnItems)
 
       const drawControl = new (L.Control as any).Draw({
-        edit: { featureGroup: drawnItems, edit: true, remove: true },
+        // Use option objects instead of booleans for nested option groups.
+        // Passing `true` previously caused leaflet-draw to attempt to set
+        // properties on a boolean (TypeError). Empty objects enable defaults.
+        edit: { featureGroup: drawnItems, edit: {}, remove: {} },
         draw: {
-          polygon: true,
+          polygon: {},
           polyline: false,
-          rectangle: true,
+          rectangle: {},
           circle: false,
           marker: false,
           circlemarker: false
@@ -486,7 +515,46 @@ export default function App() {
         const layer = e.layer
         drawnItems.clearLayers()
         drawnItems.addLayer(layer)
+        // If user drew a rectangle, trigger backend pipeline for that bbox
         const geojson = layer.toGeoJSON()
+        const type = e.layerType || (geojson && geojson.geometry && geojson.geometry.type)
+        if (type === 'Rectangle' || type === 'Polygon') {
+          // For rectangles created by leaflet-draw, layer.getBounds() is available
+          if (layer.getBounds) {
+            const b = layer.getBounds()
+            const minLat = b.getSouth()
+            const minLng = b.getWest()
+            const maxLat = b.getNorth()
+            const maxLng = b.getEast()
+            // POST bbox to backend to start processing
+            axios.post('http://localhost:8000/process_bbox', {
+              minx: minLng,
+              miny: minLat,
+              maxx: maxLng,
+              maxy: maxLat
+            }).then(res => {
+              const jobId = res.data.job_id
+              // poll job endpoint until done
+              const poll = setInterval(() => {
+                axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
+                  if (r.data.status === 'done' && r.data.result) {
+                    clearInterval(poll)
+                    setZones(r.data.result.features || r.data.result)
+                    // generate a simple summary
+                    axios.get('http://localhost:8000/zones/summary').then(s => setSummary(s.data)).catch(()=>{})
+                    onDraw(r.data.result)
+                  } else if (r.data.status === 'error') {
+                    clearInterval(poll)
+                    alert('Processing failed: ' + (r.data.error || 'unknown'))
+                  }
+                }).catch(() => {})
+              }, 5000)
+            }).catch(err => {
+              alert('Failed to start processing: ' + err)
+            })
+            return
+          }
+        }
         onDraw(geojson)
       })
 
@@ -495,8 +563,8 @@ export default function App() {
         onDraw(null)
       })
 
-      // toggle control
-      if (drawMode) {
+      // toggle control (only enable leaflet-draw when explicitly requested)
+      if (drawMode === 'rectangle') {
         map.addControl(drawControl)
       }
 
@@ -508,16 +576,47 @@ export default function App() {
     return null
   }
 
-  function MapDrawHandler({ drawMode, onStart, onMove, onEnd }:{ drawMode:boolean, onStart:(latlng:{lat:number,lng:number})=>void, onMove:(radius:number)=>void, onEnd:()=>void }) {
+  function MapDrawHandler({ drawMode, onStart, onMove, onEnd, onFinish }:{ drawMode:'none'|'circle'|'pen', onStart:(latlng:{lat:number,lng:number})=>void, onMove:(radius:number)=>void, onEnd:()=>void, onFinish?: (geojson:any)=>void }) {
     const startRef = useRef<{lat:number,lng:number}|null>(null)
+    const drawingRef = useRef<{layer?: L.Polyline, latlngs: L.LatLng[]} | null>(null)
+    const map = useMap()
+
     useMapEvents({
       mousedown(e:any) {
-        if (!drawMode) return
+        if (drawMode === 'pen') {
+          // ensure a dedicated layer group exists for drawn shapes
+          if (!(window as any).drawnLayerGroup) {
+            try {
+              const g = new L.FeatureGroup()
+              map.addLayer(g)
+              ;(window as any).drawnLayerGroup = g
+            } catch {}
+          }
+
+          // disable map interactions so drawing doesn't pan/zoom the map
+          try { map.dragging.disable() } catch {}
+          try { map.doubleClickZoom.disable() } catch {}
+          try { map.scrollWheelZoom.disable() } catch {}
+          try { map.touchZoom.disable && map.touchZoom.disable() } catch {}
+
+          // start freehand
+          drawingRef.current = { latlngs: [e.latlng] }
+          const poly = L.polyline([e.latlng], { color: '#3b82f6', weight: 2 })
+          try { (window as any).drawnLayerGroup.addLayer(poly) } catch { poly.addTo(map) }
+          drawingRef.current.layer = poly
+          return
+        }
+        if (drawMode !== 'circle') return
         startRef.current = e.latlng
         onStart(e.latlng)
       },
       mousemove(e:any) {
-        if (!drawMode || !startRef.current) return
+        if (drawMode === 'pen' && drawingRef.current) {
+          drawingRef.current.latlngs.push(e.latlng)
+          drawingRef.current.layer!.setLatLngs(drawingRef.current.latlngs)
+          return
+        }
+        if (drawMode !== 'circle' || !startRef.current) return
         const a = startRef.current
         const b = e.latlng
         const toRad = (deg: number) => deg * Math.PI / 180
@@ -530,7 +629,30 @@ export default function App() {
         onMove(dist)
       },
       mouseup(_e:any) {
-        if (!drawMode || !startRef.current) return
+        if (drawMode === 'pen' && drawingRef.current) {
+          // finalize polygon (close ring)
+          const latlngs = drawingRef.current.latlngs
+          // remove small or accidental strokes
+          if (latlngs.length > 2) {
+            const poly = L.polygon(latlngs, { color: '#3b82f6', weight: 2, fillOpacity: 0.05 })
+            // replace the temporary polyline with polygon
+            drawingRef.current.layer!.remove()
+            try { (window as any).drawnLayerGroup.addLayer(poly) } catch { poly.addTo(map) }
+            const geo = poly.toGeoJSON()
+            if (onFinish) onFinish(geo)
+          } else {
+            // not enough points, clean up
+            drawingRef.current.layer!.remove()
+          }
+          drawingRef.current = null
+          // re-enable map interactions
+          try { map.dragging.enable() } catch {}
+          try { map.doubleClickZoom.enable() } catch {}
+          try { map.scrollWheelZoom.enable() } catch {}
+          try { map.touchZoom.enable && map.touchZoom.enable() } catch {}
+          return
+        }
+        if (drawMode !== 'circle' || !startRef.current) return
         // final move already reported; clear start and finish
         startRef.current = null
         onEnd()
