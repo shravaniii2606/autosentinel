@@ -1,0 +1,19 @@
+# Web backend
+fastapi
+uvicorn[standard]
+requests
+
+# Satellite imagery / Earth Engine
+earthengine-api
+geemap
+rasterio
+numpy
+
+# Geospatial (GIS layers, zoning, legal verification)
+geopandas
+shapely
+osmnx
+fiona
+
+# PDF report generation
+reportlab

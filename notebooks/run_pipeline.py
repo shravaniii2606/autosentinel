@@ -16,6 +16,7 @@ def main(minx, miny, maxx, maxy, job_dir):
     tif_path = os.path.join(job_dir, 'change.tif')
     detected_geojson = os.path.join(job_dir, 'new_construction.geojson')
     scored_geojson = os.path.join(job_dir, 'scored_zones.geojson')
+    legal_geojson = os.path.join(job_dir, 'legal_verified_zones.geojson')
 
     # 1) Fetch imagery and compute change mask
     run([sys.executable, os.path.join('notebooks', 'fetch_imagery.py'), str(minx), str(miny), str(maxx), str(maxy), tif_path])
@@ -25,6 +26,14 @@ def main(minx, miny, maxx, maxy, job_dir):
 
     # 3) Score zones
     run([sys.executable, os.path.join('notebooks', 'score_zones.py'), detected_geojson, scored_geojson])
+
+    # 3.5) Check zones against legal/protected layers (forest, wetland, etc.)
+    # Non-fatal: if OSM is unreachable or all layers are unavailable, the
+    # script still runs and just leaves final_risk_score == risk_score.
+    try:
+        run([sys.executable, os.path.join('notebooks', 'legal_zone_check.py'), scored_geojson, legal_geojson])
+    except Exception as e:
+        print(f"Legal zone check skipped: {e}")
 
     # 4) Optionally generate reports for each zone (could be slow)
     # We'll generate report files for each detected zone in scored_geojson

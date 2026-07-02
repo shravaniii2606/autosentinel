@@ -9,9 +9,14 @@ with open(os.path.join(BASE_DIR, 'data/flagged_zones.json')) as f:
     zones = json.load(f)
 
 zone_id = sys.argv[1] if len(sys.argv) > 1 else str(zones[0]['id'])
+zone_payload = sys.argv[2] if len(sys.argv) > 2 else None
 
-# Match by string or int id
-zone = next((z for z in zones if str(z['id']) == str(zone_id)), zones[0])
+if zone_payload:
+    zone = json.loads(zone_payload)
+    zone['id'] = zone.get('id', zone_id)
+else:
+    # Match by string or int id
+    zone = next((z for z in zones if str(z['id']) == str(zone_id)), zones[0])
 
 output_path = os.path.join(BASE_DIR, f"data/report_zone_{zone['id']}.pdf")
 before_path = os.path.join(BASE_DIR, f"data/images/zone_{zone['id']}_before.png")
@@ -40,6 +45,17 @@ sev = zone['severity']
 score = zone['risk_score']
 area = zone['area_sqm']
 violation = zone.get('violation_type', 'UNVERIFIED_ZONE')
+
+# New fields from legal_zone_check.py — absent on zones exported before the
+# legal verification step existed, so everything here falls back gracefully.
+construction_score = zone.get('construction_risk_score', score)
+legal_score = zone.get('legal_risk_score', 0)
+legal_violations_raw = zone.get('legal_violations', 'NONE')
+legal_violations_list = (
+    [v.strip() for v in legal_violations_raw.split(',') if v.strip() and v.strip() != 'NONE']
+    if isinstance(legal_violations_raw, str) else []
+)
+has_legal_data = 'legal_risk_score' in zone
 
 # ── Header ──────────────────────────────────────────────────────────────────
 title_style = ParagraphStyle('title', fontSize=22, fontName='Helvetica-Bold',
@@ -72,8 +88,14 @@ details_data = [
     ['Constructed Area', f"{area/10000:.2f} hectares  ({area:,.0f} sq metres)"],
     ['Severity Level', sev],
     ['Risk Score', f"{score} / 100"],
-    ['Violation Type', violation.replace('_', ' ')],
+    ['Primary Violation', violation.replace('_', ' ')],
 ]
+if has_legal_data:
+    details_data.append([
+        'Legal Layers Matched',
+        f"{len(legal_violations_list)}  ({', '.join(v.replace('_', ' ') for v in legal_violations_list)})"
+        if legal_violations_list else 'None — no protected/restricted layer intersected'
+    ])
 
 table = Table(details_data, colWidths=[6*cm, 11*cm])
 table.setStyle(TableStyle([
@@ -121,11 +143,17 @@ else:
         f"covers {area:.0f} sq metres — a small structure that should be logged for routine inspection."
     )
 
-violation_reason = {
+VIOLATION_REASON_TEXT = {
     'FOREST_ENCROACHMENT': (
-        "The construction location falls within an area classified as protected forest or woodland "
-        "by ISRO Bhuvan land use data. Construction on forest land without Forest Department "
-        "clearance is prohibited under the Forest Conservation Act, 1980."
+        "The construction location intersects an area classified as forest or woodland "
+        "(OpenStreetMap land-use data, cross-checked against ISRO Bhuvan where available). "
+        "Construction on forest land without Forest Department clearance is prohibited under "
+        "the Forest Conservation Act, 1980."
+    ),
+    'AGRICULTURAL_LAND_CONVERSION': (
+        "The construction location falls on land classified as agricultural. Converting agricultural "
+        "land to non-agricultural use without Maharashtra government permission violates the "
+        "Maharashtra Land Revenue Code."
     ),
     'AGRICULTURAL_LAND': (
         "The construction location falls on land classified as agricultural. Converting agricultural "
@@ -133,24 +161,51 @@ violation_reason = {
         "Maharashtra Land Revenue Code."
     ),
     'WATER_BODY_ENCROACHMENT': (
-        "The construction is detected near or within a water body buffer zone. Construction in "
-        "these areas is prohibited under CRZ and water body protection regulations."
+        "The construction intersects a mapped water body or wetland. Construction in these areas "
+        "is prohibited under CRZ and water body protection regulations."
+    ),
+    'RAILWAY_LAND_ENCROACHMENT': (
+        "The construction falls within a 30-metre buffer of mapped railway land. Encroachment on "
+        "railway land is prohibited under the Railways Act, 1989."
+    ),
+    'CRZ_VIOLATION': (
+        "The construction intersects a mapped Coastal Regulation Zone. Construction here requires "
+        "clearance under the CRZ Notification issued by MoEFCC."
     ),
     'UNVERIFIED_ZONE': (
-        "The land classification for this zone could not be verified against available zoning data. "
-        "The flag is based solely on the magnitude of satellite-detected construction change. "
-        "Ground verification is required to determine the applicable land use rules."
+        "The land classification for this zone could not be verified against available legal layers. "
+        "No forest, water, agricultural, or railway-buffer data intersected this location at the time "
+        "of the check. The flag is based solely on the magnitude of satellite-detected construction "
+        "change, and ground verification is required to determine applicable land-use rules."
+    ),
+}
+
+if legal_violations_list:
+    # One paragraph per matched legal layer — a zone can violate more than one.
+    violation_reason = " ".join(
+        VIOLATION_REASON_TEXT.get(v, f"Zone intersects a mapped {v.replace('_', ' ').lower()} area.")
+        for v in legal_violations_list
     )
-}.get(violation, "Land classification pending verification.")
+else:
+    violation_reason = VIOLATION_REASON_TEXT.get(violation, "Land classification pending verification.")
 
 score_breakdown_data = [
     ['Scoring Factor', 'Value', 'Contribution'],
     ['Construction Area', f"{area/10000:.2f} ha", 'Primary driver — larger = higher score'],
-    ['Land Classification', violation.replace('_', ' '), 'Determines violation severity'],
     ['NDBI Change Magnitude', '> 0.15 threshold', 'Confirms built-up area increase'],
     ['Time Period', '2019 → 2023', '4-year change window'],
-    ['Final Score', f"{score}/100", f"Severity: {sev}"],
 ]
+if has_legal_data:
+    score_breakdown_data.append([
+        'Construction Score', f"{construction_score}/100", 'Area-based component'
+    ])
+    score_breakdown_data.append([
+        'Legal Layer Score', f"{legal_score}/100",
+        f"{len(legal_violations_list)} legal layer(s) matched" if legal_violations_list else "No legal layers matched"
+    ])
+else:
+    score_breakdown_data.append(['Land Classification', violation.replace('_', ' '), 'Determines violation severity'])
+score_breakdown_data.append(['Final Score', f"{score}/100", f"Severity: {sev}"])
 
 breakdown_table = Table(score_breakdown_data, colWidths=[5*cm, 5*cm, 7*cm])
 breakdown_table.setStyle(TableStyle([
@@ -171,6 +226,33 @@ story.append(Paragraph(score_reason,
 story.append(Paragraph(f"Land Classification Note: {violation_reason}",
     ParagraphStyle('body2', fontSize=9, textColor=colors.HexColor('#555555'),
         leading=14, spaceAfter=8)))
+
+# ── Detailed Land Use & Legal Context ──────────────────────────────────────
+story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#DDDDDD'), spaceAfter=8))
+story.append(Paragraph("Land Use & Legal Context",
+    ParagraphStyle('h2', fontSize=13, fontName='Helvetica-Bold',
+        spaceAfter=6, textColor=colors.HexColor('#222222'))))
+
+land_context_lines = [
+    f"Primary violation category: {violation.replace('_', ' ')}",
+    f"Matched legal layers: {', '.join(v.replace('_', ' ') for v in legal_violations_list) if legal_violations_list else 'None'}",
+    "Site classification summary: this zone is assessed for agricultural land use, water body proximity, forest-zone overlap, or other protected/restricted land categories.",
+    "For each detected area, the enforcement authority should verify the exact cadastral and land-use status on the ground before issuing notices or penalties."
+]
+for line in land_context_lines:
+    story.append(Paragraph(line,
+        ParagraphStyle('body', fontSize=9, textColor=colors.HexColor('#333333'),
+            leading=12, spaceAfter=4)))
+
+if legal_violations_list:
+    story.append(Paragraph("Detailed findings:",
+        ParagraphStyle('body', fontSize=9, fontName='Helvetica-Bold',
+            textColor=colors.HexColor('#222222'), leading=12, spaceAfter=4)))
+    for item in legal_violations_list:
+        reason = VIOLATION_REASON_TEXT.get(item, f"Zone intersects a mapped {item.replace('_', ' ').lower()} area.")
+        story.append(Paragraph(f"• {item.replace('_', ' ')}: {reason}",
+            ParagraphStyle('body', fontSize=8.5, textColor=colors.HexColor('#444444'),
+                leading=11, spaceAfter=3)))
 
 # ── Satellite Evidence ───────────────────────────────────────────────────────
 story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#DDDDDD'), spaceAfter=8))

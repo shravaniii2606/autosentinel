@@ -1,0 +1,1292 @@
+{
+  "live_52cc7ecf_3": {
+    "id": "live_52cc7ecf_3",
+    "lat": 19.432206,
+    "lon": 72.970611,
+    "area_sqm": 4000.0,
+    "severity": "MEDIUM",
+    "risk_score": 50.0,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_2": {
+    "id": "live_52cc7ecf_2",
+    "lat": 19.433835,
+    "lon": 72.980275,
+    "area_sqm": 3000.0,
+    "severity": "MEDIUM",
+    "risk_score": 45.0,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_11": {
+    "id": "live_52cc7ecf_11",
+    "lat": 19.368621,
+    "lon": 72.935602,
+    "area_sqm": 2100.0,
+    "severity": "MEDIUM",
+    "risk_score": 40.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_7": {
+    "id": "live_52cc7ecf_7",
+    "lat": 19.413488,
+    "lon": 72.948897,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_10": {
+    "id": "live_52cc7ecf_10",
+    "lat": 19.369968,
+    "lon": 72.986871,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_0": {
+    "id": "live_52cc7ecf_0",
+    "lat": 19.434117,
+    "lon": 72.979933,
+    "area_sqm": 1000.0,
+    "severity": "LOW",
+    "risk_score": 13.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_9": {
+    "id": "live_52cc7ecf_9",
+    "lat": 19.373472,
+    "lon": 72.990248,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_1": {
+    "id": "live_52cc7ecf_1",
+    "lat": 19.433603,
+    "lon": 72.97526,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_12": {
+    "id": "live_52cc7ecf_12",
+    "lat": 19.366375,
+    "lon": 72.932534,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_4": {
+    "id": "live_52cc7ecf_4",
+    "lat": 19.42782,
+    "lon": 72.967834,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_13": {
+    "id": "live_52cc7ecf_13",
+    "lat": 19.365438,
+    "lon": 72.932107,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_6": {
+    "id": "live_52cc7ecf_6",
+    "lat": 19.413731,
+    "lon": 72.948441,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_5": {
+    "id": "live_52cc7ecf_5",
+    "lat": 19.426131,
+    "lon": 72.990336,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_52cc7ecf_8": {
+    "id": "live_52cc7ecf_8",
+    "lat": 19.400493,
+    "lon": 72.959721,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_47": {
+    "id": "live_5fe86f78_47",
+    "lat": 19.347181,
+    "lon": 72.970386,
+    "area_sqm": 8000.1,
+    "severity": "MEDIUM",
+    "risk_score": 70.0,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_77": {
+    "id": "live_5fe86f78_77",
+    "lat": 19.339521,
+    "lon": 72.957158,
+    "area_sqm": 4700.0,
+    "severity": "MEDIUM",
+    "risk_score": 53.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_24": {
+    "id": "live_5fe86f78_24",
+    "lat": 19.432206,
+    "lon": 72.970611,
+    "area_sqm": 4000.0,
+    "severity": "MEDIUM",
+    "risk_score": 50.0,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_45": {
+    "id": "live_5fe86f78_45",
+    "lat": 19.347034,
+    "lon": 72.965524,
+    "area_sqm": 3300.0,
+    "severity": "MEDIUM",
+    "risk_score": 46.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_23": {
+    "id": "live_5fe86f78_23",
+    "lat": 19.433835,
+    "lon": 72.980275,
+    "area_sqm": 3000.0,
+    "severity": "MEDIUM",
+    "risk_score": 45.0,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_54": {
+    "id": "live_5fe86f78_54",
+    "lat": 19.343975,
+    "lon": 72.965495,
+    "area_sqm": 2800.0,
+    "severity": "MEDIUM",
+    "risk_score": 44.0,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_10": {
+    "id": "live_5fe86f78_10",
+    "lat": 19.446312,
+    "lon": 72.984422,
+    "area_sqm": 2700.0,
+    "severity": "MEDIUM",
+    "risk_score": 43.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_48": {
+    "id": "live_5fe86f78_48",
+    "lat": 19.346496,
+    "lon": 72.97152,
+    "area_sqm": 2700.0,
+    "severity": "MEDIUM",
+    "risk_score": 43.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_55": {
+    "id": "live_5fe86f78_55",
+    "lat": 19.343719,
+    "lon": 72.966613,
+    "area_sqm": 2500.0,
+    "severity": "MEDIUM",
+    "risk_score": 42.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_57": {
+    "id": "live_5fe86f78_57",
+    "lat": 19.342861,
+    "lon": 72.967253,
+    "area_sqm": 2500.0,
+    "severity": "MEDIUM",
+    "risk_score": 42.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_3": {
+    "id": "live_5fe86f78_3",
+    "lat": 19.449891,
+    "lon": 72.987576,
+    "area_sqm": 2300.0,
+    "severity": "MEDIUM",
+    "risk_score": 41.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_51": {
+    "id": "live_5fe86f78_51",
+    "lat": 19.345761,
+    "lon": 72.971535,
+    "area_sqm": 2300.0,
+    "severity": "MEDIUM",
+    "risk_score": 41.5,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_59": {
+    "id": "live_5fe86f78_59",
+    "lat": 19.342419,
+    "lon": 72.965737,
+    "area_sqm": 2200.0,
+    "severity": "MEDIUM",
+    "risk_score": 41.0,
+    "action": "Schedule inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_11": {
+    "id": "live_5fe86f78_11",
+    "lat": 19.44625,
+    "lon": 72.986645,
+    "area_sqm": 1800.0,
+    "severity": "LOW",
+    "risk_score": 18.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_12": {
+    "id": "live_5fe86f78_12",
+    "lat": 19.446145,
+    "lon": 72.98394,
+    "area_sqm": 1800.0,
+    "severity": "LOW",
+    "risk_score": 18.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_13": {
+    "id": "live_5fe86f78_13",
+    "lat": 19.445357,
+    "lon": 72.984758,
+    "area_sqm": 1800.0,
+    "severity": "LOW",
+    "risk_score": 18.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_17": {
+    "id": "live_5fe86f78_17",
+    "lat": 19.444963,
+    "lon": 72.985871,
+    "area_sqm": 1800.0,
+    "severity": "LOW",
+    "risk_score": 18.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_75": {
+    "id": "live_5fe86f78_75",
+    "lat": 19.339445,
+    "lon": 72.958123,
+    "area_sqm": 1800.0,
+    "severity": "LOW",
+    "risk_score": 18.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_60": {
+    "id": "live_5fe86f78_60",
+    "lat": 19.341862,
+    "lon": 72.965086,
+    "area_sqm": 1700.0,
+    "severity": "LOW",
+    "risk_score": 18.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_83": {
+    "id": "live_5fe86f78_83",
+    "lat": 19.338471,
+    "lon": 72.960179,
+    "area_sqm": 1600.0,
+    "severity": "LOW",
+    "risk_score": 17.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_39": {
+    "id": "live_5fe86f78_39",
+    "lat": 19.349642,
+    "lon": 72.964021,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_50": {
+    "id": "live_5fe86f78_50",
+    "lat": 19.345947,
+    "lon": 72.970501,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_58": {
+    "id": "live_5fe86f78_58",
+    "lat": 19.342204,
+    "lon": 72.96647,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_68": {
+    "id": "live_5fe86f78_68",
+    "lat": 19.340983,
+    "lon": 72.961733,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_73": {
+    "id": "live_5fe86f78_73",
+    "lat": 19.339539,
+    "lon": 72.959859,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_78": {
+    "id": "live_5fe86f78_78",
+    "lat": 19.33906,
+    "lon": 72.961176,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_80": {
+    "id": "live_5fe86f78_80",
+    "lat": 19.338833,
+    "lon": 72.962057,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_112": {
+    "id": "live_5fe86f78_112",
+    "lat": 19.332772,
+    "lon": 72.969722,
+    "area_sqm": 1500.0,
+    "severity": "LOW",
+    "risk_score": 16.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_41": {
+    "id": "live_5fe86f78_41",
+    "lat": 19.34796,
+    "lon": 72.971767,
+    "area_sqm": 1400.0,
+    "severity": "LOW",
+    "risk_score": 16.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_46": {
+    "id": "live_5fe86f78_46",
+    "lat": 19.346914,
+    "lon": 72.967507,
+    "area_sqm": 1400.0,
+    "severity": "LOW",
+    "risk_score": 16.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_53": {
+    "id": "live_5fe86f78_53",
+    "lat": 19.345476,
+    "lon": 72.970657,
+    "area_sqm": 1400.0,
+    "severity": "LOW",
+    "risk_score": 16.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_66": {
+    "id": "live_5fe86f78_66",
+    "lat": 19.341511,
+    "lon": 72.958158,
+    "area_sqm": 1400.0,
+    "severity": "LOW",
+    "risk_score": 16.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_113": {
+    "id": "live_5fe86f78_113",
+    "lat": 19.332239,
+    "lon": 72.956686,
+    "area_sqm": 1300.0,
+    "severity": "LOW",
+    "risk_score": 15.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_18": {
+    "id": "live_5fe86f78_18",
+    "lat": 19.444184,
+    "lon": 72.985235,
+    "area_sqm": 1200.0,
+    "severity": "LOW",
+    "risk_score": 14.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_62": {
+    "id": "live_5fe86f78_62",
+    "lat": 19.341724,
+    "lon": 72.959303,
+    "area_sqm": 1200.0,
+    "severity": "LOW",
+    "risk_score": 14.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_79": {
+    "id": "live_5fe86f78_79",
+    "lat": 19.338976,
+    "lon": 72.964356,
+    "area_sqm": 1200.0,
+    "severity": "LOW",
+    "risk_score": 14.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_86": {
+    "id": "live_5fe86f78_86",
+    "lat": 19.338445,
+    "lon": 72.959513,
+    "area_sqm": 1200.0,
+    "severity": "LOW",
+    "risk_score": 14.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_108": {
+    "id": "live_5fe86f78_108",
+    "lat": 19.334096,
+    "lon": 72.969859,
+    "area_sqm": 1200.0,
+    "severity": "LOW",
+    "risk_score": 14.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_8": {
+    "id": "live_5fe86f78_8",
+    "lat": 19.446938,
+    "lon": 72.986716,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_19": {
+    "id": "live_5fe86f78_19",
+    "lat": 19.441213,
+    "lon": 72.959318,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_32": {
+    "id": "live_5fe86f78_32",
+    "lat": 19.369968,
+    "lon": 72.986871,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_42": {
+    "id": "live_5fe86f78_42",
+    "lat": 19.34796,
+    "lon": 72.965998,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_74": {
+    "id": "live_5fe86f78_74",
+    "lat": 19.339524,
+    "lon": 72.962249,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_95": {
+    "id": "live_5fe86f78_95",
+    "lat": 19.33731,
+    "lon": 72.953536,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_98": {
+    "id": "live_5fe86f78_98",
+    "lat": 19.336845,
+    "lon": 72.953438,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_111": {
+    "id": "live_5fe86f78_111",
+    "lat": 19.332884,
+    "lon": 72.982396,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_21": {
+    "id": "live_5fe86f78_21",
+    "lat": 19.434117,
+    "lon": 72.979933,
+    "area_sqm": 1000.0,
+    "severity": "LOW",
+    "risk_score": 13.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_84": {
+    "id": "live_5fe86f78_84",
+    "lat": 19.33841,
+    "lon": 72.958949,
+    "area_sqm": 1000.0,
+    "severity": "LOW",
+    "risk_score": 13.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_2": {
+    "id": "live_5fe86f78_2",
+    "lat": 19.450407,
+    "lon": 72.987503,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_28": {
+    "id": "live_5fe86f78_28",
+    "lat": 19.379031,
+    "lon": 73.000738,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_30": {
+    "id": "live_5fe86f78_30",
+    "lat": 19.373472,
+    "lon": 72.990248,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_61": {
+    "id": "live_5fe86f78_61",
+    "lat": 19.341631,
+    "lon": 72.967281,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_63": {
+    "id": "live_5fe86f78_63",
+    "lat": 19.341412,
+    "lon": 72.966013,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_64": {
+    "id": "live_5fe86f78_64",
+    "lat": 19.341372,
+    "lon": 72.96793,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_69": {
+    "id": "live_5fe86f78_69",
+    "lat": 19.340503,
+    "lon": 72.96768,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_71": {
+    "id": "live_5fe86f78_71",
+    "lat": 19.340124,
+    "lon": 72.967411,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_110": {
+    "id": "live_5fe86f78_110",
+    "lat": 19.332898,
+    "lon": 72.956751,
+    "area_sqm": 900.0,
+    "severity": "LOW",
+    "risk_score": 12.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_22": {
+    "id": "live_5fe86f78_22",
+    "lat": 19.433603,
+    "lon": 72.97526,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_34": {
+    "id": "live_5fe86f78_34",
+    "lat": 19.367565,
+    "lon": 73.007318,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_67": {
+    "id": "live_5fe86f78_67",
+    "lat": 19.341132,
+    "lon": 73.011967,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_85": {
+    "id": "live_5fe86f78_85",
+    "lat": 19.338392,
+    "lon": 72.96092,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_87": {
+    "id": "live_5fe86f78_87",
+    "lat": 19.338392,
+    "lon": 72.964716,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_99": {
+    "id": "live_5fe86f78_99",
+    "lat": 19.336764,
+    "lon": 72.962122,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_107": {
+    "id": "live_5fe86f78_107",
+    "lat": 19.334328,
+    "lon": 72.960696,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_109": {
+    "id": "live_5fe86f78_109",
+    "lat": 19.332991,
+    "lon": 72.970723,
+    "area_sqm": 800.0,
+    "severity": "LOW",
+    "risk_score": 12.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_7": {
+    "id": "live_5fe86f78_7",
+    "lat": 19.448558,
+    "lon": 72.956965,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_20": {
+    "id": "live_5fe86f78_20",
+    "lat": 19.438702,
+    "lon": 72.956182,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_25": {
+    "id": "live_5fe86f78_25",
+    "lat": 19.42782,
+    "lon": 72.967834,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_31": {
+    "id": "live_5fe86f78_31",
+    "lat": 19.372137,
+    "lon": 73.003407,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_52": {
+    "id": "live_5fe86f78_52",
+    "lat": 19.345496,
+    "lon": 72.970144,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_65": {
+    "id": "live_5fe86f78_65",
+    "lat": 19.341132,
+    "lon": 72.958517,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_90": {
+    "id": "live_5fe86f78_90",
+    "lat": 19.338052,
+    "lon": 72.963137,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_91": {
+    "id": "live_5fe86f78_91",
+    "lat": 19.337873,
+    "lon": 72.981732,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_96": {
+    "id": "live_5fe86f78_96",
+    "lat": 19.337051,
+    "lon": 72.960109,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_100": {
+    "id": "live_5fe86f78_100",
+    "lat": 19.336564,
+    "lon": 72.982669,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_101": {
+    "id": "live_5fe86f78_101",
+    "lat": 19.335999,
+    "lon": 72.960019,
+    "area_sqm": 700.0,
+    "severity": "LOW",
+    "risk_score": 11.3,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_0": {
+    "id": "live_5fe86f78_0",
+    "lat": 19.451191,
+    "lon": 72.988072,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_9": {
+    "id": "live_5fe86f78_9",
+    "lat": 19.446609,
+    "lon": 72.98379,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_35": {
+    "id": "live_5fe86f78_35",
+    "lat": 19.358694,
+    "lon": 73.015021,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_43": {
+    "id": "live_5fe86f78_43",
+    "lat": 19.347286,
+    "lon": 72.971992,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_56": {
+    "id": "live_5fe86f78_56",
+    "lat": 19.343064,
+    "lon": 72.966153,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_70": {
+    "id": "live_5fe86f78_70",
+    "lat": 19.340219,
+    "lon": 72.961691,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_88": {
+    "id": "live_5fe86f78_88",
+    "lat": 19.338078,
+    "lon": 72.962335,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_89": {
+    "id": "live_5fe86f78_89",
+    "lat": 19.337943,
+    "lon": 72.960539,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_93": {
+    "id": "live_5fe86f78_93",
+    "lat": 19.337719,
+    "lon": 72.958922,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_94": {
+    "id": "live_5fe86f78_94",
+    "lat": 19.337314,
+    "lon": 72.953217,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_97": {
+    "id": "live_5fe86f78_97",
+    "lat": 19.33682,
+    "lon": 72.982457,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_102": {
+    "id": "live_5fe86f78_102",
+    "lat": 19.335428,
+    "lon": 72.981424,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 10.7,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_1": {
+    "id": "live_5fe86f78_1",
+    "lat": 19.45096,
+    "lon": 72.98782,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_4": {
+    "id": "live_5fe86f78_4",
+    "lat": 19.449002,
+    "lon": 72.98782,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_5": {
+    "id": "live_5fe86f78_5",
+    "lat": 19.448912,
+    "lon": 72.972836,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_6": {
+    "id": "live_5fe86f78_6",
+    "lat": 19.448966,
+    "lon": 72.987228,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_14": {
+    "id": "live_5fe86f78_14",
+    "lat": 19.444996,
+    "lon": 72.985611,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_15": {
+    "id": "live_5fe86f78_15",
+    "lat": 19.444762,
+    "lon": 72.984281,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_16": {
+    "id": "live_5fe86f78_16",
+    "lat": 19.444726,
+    "lon": 72.965848,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_26": {
+    "id": "live_5fe86f78_26",
+    "lat": 19.426131,
+    "lon": 72.990336,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_27": {
+    "id": "live_5fe86f78_27",
+    "lat": 19.400493,
+    "lon": 72.959721,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_29": {
+    "id": "live_5fe86f78_29",
+    "lat": 19.37879,
+    "lon": 73.001601,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_33": {
+    "id": "live_5fe86f78_33",
+    "lat": 19.368854,
+    "lon": 73.006002,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_36": {
+    "id": "live_5fe86f78_36",
+    "lat": 19.357697,
+    "lon": 72.996588,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_37": {
+    "id": "live_5fe86f78_37",
+    "lat": 19.355182,
+    "lon": 73.00638,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_38": {
+    "id": "live_5fe86f78_38",
+    "lat": 19.352667,
+    "lon": 73.007458,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_40": {
+    "id": "live_5fe86f78_40",
+    "lat": 19.349415,
+    "lon": 72.964338,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_44": {
+    "id": "live_5fe86f78_44",
+    "lat": 19.346828,
+    "lon": 72.967986,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_49": {
+    "id": "live_5fe86f78_49",
+    "lat": 19.346181,
+    "lon": 72.965291,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_72": {
+    "id": "live_5fe86f78_72",
+    "lat": 19.339623,
+    "lon": 72.982107,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_76": {
+    "id": "live_5fe86f78_76",
+    "lat": 19.339084,
+    "lon": 72.959901,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_81": {
+    "id": "live_5fe86f78_81",
+    "lat": 19.338707,
+    "lon": 72.961482,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_82": {
+    "id": "live_5fe86f78_82",
+    "lat": 19.338437,
+    "lon": 72.964177,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_92": {
+    "id": "live_5fe86f78_92",
+    "lat": 19.337773,
+    "lon": 72.96256,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_103": {
+    "id": "live_5fe86f78_103",
+    "lat": 19.335383,
+    "lon": 72.960673,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_104": {
+    "id": "live_5fe86f78_104",
+    "lat": 19.335419,
+    "lon": 72.961248,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_105": {
+    "id": "live_5fe86f78_105",
+    "lat": 19.334682,
+    "lon": 72.959344,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_106": {
+    "id": "live_5fe86f78_106",
+    "lat": 19.334395,
+    "lon": 72.984694,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  },
+  "live_5fe86f78_114": {
+    "id": "live_5fe86f78_114",
+    "lat": 19.331287,
+    "lon": 72.970411,
+    "area_sqm": 500.0,
+    "severity": "LOW",
+    "risk_score": 10.0,
+    "action": "Log for routine inspection",
+    "violation_type": "LIVE_SCAN_RESULT"
+  }
+}

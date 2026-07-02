@@ -32,6 +32,19 @@ with open(DATA_PATH) as f:
 
 # In-memory job store
 JOBS = {}
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LIVE_ZONE_REPORTS_PATH = os.path.join(BASE_DIR, 'data', 'live_zone_reports.json')
+
+if os.path.exists(LIVE_ZONE_REPORTS_PATH):
+    with open(LIVE_ZONE_REPORTS_PATH) as f:
+        LIVE_ZONE_REPORTS = json.load(f)
+else:
+    LIVE_ZONE_REPORTS = {}
+
+
+def save_live_zone_reports():
+    with open(LIVE_ZONE_REPORTS_PATH, 'w') as f:
+        json.dump(LIVE_ZONE_REPORTS, f, indent=2)
 
 # ─── Pre-computed data endpoints ───────────────────────────────────────────────
 
@@ -78,19 +91,26 @@ def get_zone_report(zone_id: str):  # changed int to str
     report_path = os.path.join(
         os.path.dirname(__file__), '..', 'data', f'report_zone_{zone_id}.pdf'
     )
-    
+
     if not os.path.exists(report_path):
-        # Only generate reports for pre-computed integer zones
+        script_path = os.path.join(
+            os.path.dirname(__file__), '..', 'notebooks', 'generate_report.py'
+        )
         try:
             int_id = int(zone_id)
-            script_path = os.path.join(
-                os.path.dirname(__file__), '..', 'notebooks', 'generate_report.py'
-            )
             subprocess.run([sys.executable, script_path, str(int_id)], check=True)
         except ValueError:
-            # Live scan zone — no pre-generated report
-            return {"error": "Report generation for live scan zones coming soon"}
-    
+            zone_payload = LIVE_ZONE_REPORTS.get(str(zone_id))
+            if zone_payload:
+                subprocess.run([
+                    sys.executable,
+                    script_path,
+                    str(zone_id),
+                    json.dumps(zone_payload)
+                ], check=True)
+            else:
+                return {"error": "Report generation for live scan zones coming soon"}
+
     if os.path.exists(report_path):
         return FileResponse(
             report_path,
@@ -280,6 +300,10 @@ def run_gee_pipeline(job_id: str, bbox: dict):
             })
 
         zones.sort(key=lambda x: x['risk_score'], reverse=True)
+
+        for zone in zones:
+            LIVE_ZONE_REPORTS[str(zone['id'])] = zone
+        save_live_zone_reports()
 
         JOBS[job_id]["status"] = "done"
         JOBS[job_id]["progress"] = f"Scan complete — {len(zones)} zones found"

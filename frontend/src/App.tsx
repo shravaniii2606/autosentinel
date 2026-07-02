@@ -16,6 +16,12 @@ interface Zone {
   risk_score: number
   action: string
   violation_type: string
+  // Present only once legal_zone_check.py has been run and
+  // export_api_data.py has picked up its output. Always optional so
+  // zones exported before that step keeps working with no changes here.
+  construction_risk_score?: number
+  legal_risk_score?: number
+  legal_violations?: string
 }
 
 interface Summary {
@@ -48,9 +54,33 @@ const violationColor: Record<string, string> = {
   FOREST_ENCROACHMENT: '#15803d',
   WATER_BODY_ENCROACHMENT: '#0284c7',
   AGRICULTURAL_LAND: '#ca8a04',
+  AGRICULTURAL_LAND_CONVERSION: '#ca8a04',
+  RAILWAY_LAND_ENCROACHMENT: '#9333ea',
+  CRZ_VIOLATION: '#0e7490',
   PROTECTED_LAND: '#7c3aed',
   POSSIBLE_PERMIT_VIOLATION: '#db2777',
   UNVERIFIED_ZONE: '#6b7280'
+}
+
+// Small pill used to show every matched legal layer, not just the primary one
+function LegalViolationTags({ legalViolations }: { legalViolations?: string }) {
+  if (!legalViolations || legalViolations === 'NONE') return null
+  const tags = legalViolations.split(',').map(t => t.trim()).filter(Boolean)
+  if (tags.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {tags.map(tag => (
+        <span
+          key={tag}
+          className="text-[10px] px-1.5 py-0.5 rounded"
+          style={{ backgroundColor: (violationColor[tag] || '#374151') + '33', color: violationColor[tag] || '#9ca3af', border: `1px solid ${violationColor[tag] || '#4b5563'}` }}
+        >
+          {tag.replace(/_/g, ' ')}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 
@@ -369,7 +399,7 @@ export default function App() {
         <div className="p-4 border-b border-gray-800">
           <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">FILTER BY VIOLATION</p>
           <div className="flex flex-wrap gap-1.5">
-            {['ALL', 'FOREST_ENCROACHMENT', 'AGRICULTURAL_LAND', 'UNVERIFIED_ZONE'].map(type => (
+            {['ALL', 'FOREST_ENCROACHMENT', 'WATER_BODY_ENCROACHMENT', 'AGRICULTURAL_LAND_CONVERSION', 'RAILWAY_LAND_ENCROACHMENT', 'UNVERIFIED_ZONE'].map(type => (
               <button
                 key={type}
                 onClick={() => setViolationFilter(type)}
@@ -410,14 +440,17 @@ export default function App() {
 
               {/* Violation type */}
               <div
-                className="text-xs px-2 py-1 rounded mb-3 inline-block"
+                className="text-xs px-2 py-1 rounded mb-1 inline-block"
                 style={{ backgroundColor: violationColor[selectedZone.violation_type] || '#374151' }}
               >
                 {selectedZone.violation_type.replace(/_/g, ' ')}
               </div>
 
+              {/* All matched legal layers (forest/wetland/railway/etc.), if present */}
+              <LegalViolationTags legalViolations={selectedZone.legal_violations} />
+
               {/* Details */}
-              <div className="space-y-1.5 text-xs text-gray-300">
+              <div className="space-y-1.5 text-xs text-gray-300 mt-3">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Area</span>
                   <span>{(selectedZone.area_sqm / 10000).toFixed(2)} hectares</span>
@@ -430,6 +463,18 @@ export default function App() {
                   <span className="text-gray-500">Zone ID</span>
                   <span>#{selectedZone.id}</span>
                 </div>
+                {selectedZone.legal_risk_score !== undefined && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Construction Score</span>
+                      <span>{selectedZone.construction_risk_score}/100</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Legal Layer Score</span>
+                      <span>{selectedZone.legal_risk_score}/100</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Action */}
@@ -493,10 +538,18 @@ export default function App() {
                   </strong>
                   <br />
                   {zone.violation_type.replace(/_/g, ' ')}
+                  {zone.legal_violations && zone.legal_violations !== 'NONE' && (
+                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>
+                      Legal layers: {zone.legal_violations.split(',').map(v => v.trim().replace(/_/g, ' ')).join(', ')}
+                    </div>
+                  )}
                   <br />
                   Area: {(zone.area_sqm / 10000).toFixed(2)} ha
                   <br />
                   Score: {zone.risk_score}/100
+                  {zone.legal_risk_score !== undefined && (
+                    <span style={{ color: '#9ca3af' }}> ({zone.construction_risk_score} + {zone.legal_risk_score} legal)</span>
+                  )}
                 </div>
               </Popup>
             </CircleMarker>
