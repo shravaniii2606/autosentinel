@@ -8,7 +8,7 @@ import 'leaflet-draw'
 
 
 interface Zone {
-  id: number
+  id: number | string
   lat: number
   lon: number
   area_sqm: number
@@ -16,6 +16,7 @@ interface Zone {
   risk_score: number
   action: string
   violation_type: string
+  microsoft_confirmed: boolean
 }
 
 interface Summary {
@@ -26,6 +27,7 @@ interface Summary {
     MEDIUM: number
     LOW: number
   }
+  microsoft_confirmed: number
   area: string
   period: string
 }
@@ -342,7 +344,10 @@ export default function App() {
     </div>
   </div>
 </div>
-
+<div className="mt-2 bg-gray-800 rounded-lg p-3">
+  <div className="text-2xl font-bold text-blue-400">{summary?.microsoft_confirmed || 0}</div>
+  <div className="text-xs text-gray-400">Microsoft AI Verified</div>
+</div>
         {/* Severity filter */}
         <div className="p-4 border-b border-gray-800">
           <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">FILTER BY SEVERITY</p>
@@ -386,6 +391,11 @@ export default function App() {
             ))}
           </div>
         </div>
+    {selectedZone?.microsoft_confirmed && (
+  <div className="text-xs px-2 py-1 rounded mb-3 inline-block bg-blue-600 ml-2">
+    ✓ Microsoft Verified
+  </div>
+)}
 
         {/* Selected zone detail */}
         {selectedZone && (

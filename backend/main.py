@@ -46,15 +46,18 @@ def get_all_zones():
 @app.get("/zones/summary")
 def get_summary():
     severity_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    microsoft_confirmed = 0
     for zone in flagged_zones:
         severity_counts[zone['severity']] += 1
+        if zone.get('microsoft_confirmed'):
+            microsoft_confirmed += 1
     return {
         "total": len(flagged_zones),
         "severity_breakdown": severity_counts,
+        "microsoft_confirmed": microsoft_confirmed,
         "area": "Vasai Virar, Maharashtra",
         "period": "2019 vs 2023"
     }
-
 @app.get("/zones/severity/{level}")
 def get_by_severity(level: str):
     filtered = [z for z in flagged_zones if z['severity'] == level.upper()]
