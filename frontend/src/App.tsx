@@ -1,10 +1,11 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
 import axios from 'axios'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import 'leaflet-draw'
+
 
 interface Zone {
   id: number
@@ -51,7 +52,7 @@ const violationColor: Record<string, string> = {
   POSSIBLE_PERMIT_VIOLATION: '#db2777',
   UNVERIFIED_ZONE: '#6b7280'
 }
-import { useRef } from 'react'
+
 
 function ImageSlider({ beforeUrl, afterUrl }: { beforeUrl: string, afterUrl: string }) {
   const [sliderPos, setSliderPos] = useState(50)
@@ -110,22 +111,43 @@ function ImageSlider({ beforeUrl, afterUrl }: { beforeUrl: string, afterUrl: str
     </div>
   )
 }
-function ZoneImages({ zoneId }: { zoneId: number }) {
+function ZoneImages({ zoneId, lat, lon }: { zoneId: number | string, lat: number, lon: number }) {
   const [images, setImages] = useState<{
     has_images: boolean
     before_url: string | null
     after_url: string | null
   } | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    axios.get(`http://localhost:8000/zones/${zoneId}/images`)
-      .then(res => setImages(res.data))
-  }, [zoneId])
+    setLoading(true)
+    setImages(null)
+    
+    // Try live-images endpoint for any zone
+    axios.get(`http://localhost:8000/zones/${zoneId}/live-images`, {
+      params: { lat, lon }
+    })
+      .then(res => {
+        setImages(res.data)
+        setLoading(false)
+      })
+      .catch(() => {
+        setLoading(false)
+      })
+  }, [zoneId, lat, lon])
+
+  if (loading) {
+    return (
+      <div className="mt-3 p-3 bg-gray-800 rounded text-xs text-gray-400 text-center animate-pulse">
+        Fetching satellite imagery...
+      </div>
+    )
+  }
 
   if (!images || !images.has_images) {
     return (
       <div className="mt-3 p-2 bg-gray-700/50 rounded text-xs text-gray-400 text-center">
-        Satellite images available for Critical zones only
+        Satellite imagery unavailable for this zone
       </div>
     )
   }
@@ -140,6 +162,89 @@ function ZoneImages({ zoneId }: { zoneId: number }) {
     </div>
   )
 }
+function LiveScanPanel({ onZonesReceived }: { onZonesReceived: (zones: Zone[]) => void }) {
+  const [scanning, setScanning] = useState(false)
+  const [scanStatus, setScanStatus] = useState<{
+  active: boolean
+  progress: string
+  jobId: string | null
+} >({ active: false, progress: '', jobId: null })
+  const [progress, setProgress] = useState('')
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [drawnBounds, setDrawnBounds] = useState<any>(null)
+  const pollRef = useRef<any>(null)
+  useEffect(() => {
+    const handler = (e: any) => {
+      setDrawnBounds(e.detail)
+    }
+    window.addEventListener('bbox-drawn', handler)
+    return () => window.removeEventListener('bbox-drawn', handler)
+  }, [])
+
+  const startScan = async () => {
+    if (!drawnBounds) {
+      alert('Draw an area on the map first using the Pen tool')
+      return
+    }
+    setScanning(true)
+    setProgress('Starting scan...')
+
+    try {
+      const res = await axios.post('http://localhost:8000/scan', drawnBounds)
+      const id = res.data.job_id
+      setJobId(id)
+
+      // Poll every 5 seconds
+      pollRef.current = setInterval(async () => {
+        const status = await axios.get(`http://localhost:8000/scan/${id}`)
+        setProgress(status.data.progress)
+
+        if (status.data.status === 'completed') {
+          clearInterval(pollRef.current)
+          setScanning(false)
+          onZonesReceived(status.data.zones)
+          setProgress(`Done — ${status.data.zones.length} zones found`)
+        } else if (status.data.status === 'failed') {
+          clearInterval(pollRef.current)
+          setScanning(false)
+          setProgress(`Failed: ${status.data.error}`)
+        }
+      }, 5000)
+    } catch (err) {
+      setScanning(false)
+      setProgress('Request failed')
+    }
+  }
+
+  return (
+    <div className="p-4 border-b border-gray-800">
+      <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">LIVE SCAN</p>
+      <p className="text-xs text-gray-400 mb-3">
+        {drawnBounds
+          ? `Area selected: ${drawnBounds.north.toFixed(3)}°N, ${drawnBounds.west.toFixed(3)}°W`
+          : 'Draw an area on the map using the Pen tool'}
+      </p>
+      <button
+        onClick={startScan}
+        disabled={scanning || !drawnBounds}
+        className="w-full py-2 rounded text-xs font-bold transition-colors disabled:opacity-50"
+        style={{ backgroundColor: scanning ? '#374151' : '#16a34a', color: 'white' }}
+      >
+        {scanning ? 'Scanning...' : 'Scan Selected Area'}
+      </button>
+      {progress && (
+        <div className="mt-2 p-2 bg-gray-800 rounded">
+          <p className="text-xs text-green-400">{progress}</p>
+          {scanning && (
+            <div className="mt-1 h-1 bg-gray-700 rounded overflow-hidden">
+              <div className="h-full bg-green-500 animate-pulse" style={{ width: '60%' }} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 export default function App() {
   const [drawMode, setDrawMode] = useState<'none'|'circle'|'pen'>('none')
   const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
@@ -151,6 +256,21 @@ export default function App() {
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
   const [severityFilter, setSeverityFilter] = useState<string>('ALL')
   const [violationFilter, setViolationFilter] = useState<string>('ALL')
+  const [scanStatus, setScanStatus] = useState<{
+    active: boolean
+    progress: string
+    jobId: string | null
+  }>({ active: false, progress: '', jobId: null })
+
+  const liveSummary = {
+  total: zones.length,
+  severity_breakdown: {
+    CRITICAL: zones.filter(z => z.severity === 'CRITICAL').length,
+    HIGH: zones.filter(z => z.severity === 'HIGH').length,
+    MEDIUM: zones.filter(z => z.severity === 'MEDIUM').length,
+    LOW: zones.filter(z => z.severity === 'LOW').length,
+  }
+}
 
   useEffect(() => {
     axios.get('http://localhost:8000/zones').then(res => setZones(res.data.zones))
@@ -195,30 +315,33 @@ export default function App() {
         </div>
 
         {/* Summary cards */}
-        {summary && (
-          <div className="p-4 border-b border-gray-800">
-            <p className="text-xs text-gray-500 mb-3 font-medium tracking-wider">DETECTION SUMMARY</p>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(summary.severity_breakdown).map(([level, count]) => (
-                <div
-                  key={level}
-                  onClick={() => setSeverityFilter(severityFilter === level ? 'ALL' : level)}
-                  className="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700 transition-colors"
-                  style={{ borderLeft: `3px solid ${severityColor[level]}` }}
-                >
-                  <div className="text-2xl font-bold" style={{ color: severityColor[level] }}>
-                    {count}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-0.5">{level}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-2 bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-white">{summary.total}</div>
-              <div className="text-xs text-gray-400">Total Flagged Zones</div>
-            </div>
-          </div>
-        )}
+        <div className="p-4 border-b border-gray-800">
+  <p className="text-xs text-gray-500 mb-3 font-medium tracking-wider">DETECTION SUMMARY</p>
+  <div className="grid grid-cols-2 gap-2">
+    {Object.entries(liveSummary.severity_breakdown).map(([level, count]) => (
+      <div
+        key={level}
+        onClick={() => setSeverityFilter(severityFilter === level ? 'ALL' : level)}
+        className="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700 transition-colors"
+        style={{ borderLeft: `3px solid ${severityColor[level]}` }}
+      >
+        <div className="text-2xl font-bold" style={{ color: severityColor[level] }}>
+          {count}
+        </div>
+        <div className="text-xs text-gray-400 mt-0.5">{level}</div>
+      </div>
+    ))}
+  </div>
+  <div className="mt-2 bg-gray-800 rounded-lg p-3">
+    <div className="text-2xl font-bold text-white">{liveSummary.total}</div>
+    <div className="text-xs text-gray-400">
+      Total Flagged Zones
+      {zones.length > 931 && (
+        <span className="text-green-400 ml-2">+{zones.length - 931} live</span>
+      )}
+    </div>
+  </div>
+</div>
 
         {/* Severity filter */}
         <div className="p-4 border-b border-gray-800">
@@ -323,7 +446,7 @@ export default function App() {
   Download Official Report (PDF)
 </a>
               {/* Before/After slider */}
-<ZoneImages zoneId={selectedZone.id} />
+<ZoneImages zoneId={selectedZone.id} lat={selectedZone.lat} lon={selectedZone.lon} />
             </div>
           </div>
         )}
@@ -377,6 +500,10 @@ export default function App() {
                 </div>
               </Popup>
             </CircleMarker>
+          ))}
+          {/* Pulsing markers for critical zones */}
+          {filtered.filter(z => z.severity === 'CRITICAL').map(z => (
+            <PulsingMarker key={`pulse-${z.id}`} lat={z.lat} lng={z.lon} />
           ))}
 
           {/* Drawn circle preview */}
@@ -450,18 +577,18 @@ export default function App() {
             <button
               onClick={() => {
                 // reset draw UI
-                setCircleCenter(null); setCircleRadius(null); setDrawMode('none')
+                setCircleCenter(null)
+                setCircleRadius(null)
+                setDrawMode('none')
                 setDrawnGeoJSON(null)
                 setSelectedZone(null)
                 setSeverityFilter('ALL')
                 setViolationFilter('ALL')
-                // clear any pen-drawn layers
                 try {
                   const g = (window as any).drawnLayerGroup
                   if (g && g.clearLayers) g.clearLayers()
                 } catch {}
 
-                // reload original zones + summary from backend
                 axios.get('http://localhost:8000/zones')
                   .then(res => setZones(res.data.zones))
                   .catch(() => {})
@@ -504,15 +631,111 @@ export default function App() {
                   ? (window as any).L.circle(circleCenter, { radius: circleRadius }).toGeoJSON()
                   : drawnGeoJSON
                 if (!payload) return
+
+                setScanStatus({ active: true, progress: 'Initializing satellite scan...', jobId: null })
+
                 axios.post('http://localhost:8000/zones/query', payload).then(res => {
-                  setZones(res.data.zones)
-                }).catch(err => alert('Query failed: ' + err))
+                  const jobId = res.data.job_id
+                  if (!jobId) return
+                  setScanStatus({ active: true, progress: 'Connecting to Google Earth Engine...', jobId })
+
+                  const poll = setInterval(() => {
+                    axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
+                      setScanStatus({ active: true, progress: r.data.progress || 'Processing...', jobId })
+
+                      if (r.data.status === 'done' && r.data.result) {
+                        clearInterval(poll)
+                        setZones(prev => [...prev, ...r.data.result])
+                        setScanStatus({ active: false, progress: `Complete — ${r.data.result.length} new zones found`, jobId })
+                        setTimeout(() => setScanStatus({ active: false, progress: '', jobId: null }), 5000)
+                      } else if (r.data.status === 'error') {
+                        clearInterval(poll)
+                        setScanStatus({ active: false, progress: `Failed: ${r.data.error}`, jobId: null })
+                      }
+                    })
+                  }, 5000)
+                }).catch(() => {
+                  setScanStatus({ active: false, progress: 'Request failed', jobId: null })
+                })
               }}
               className="px-3 py-2 rounded-md font-medium bg-green-600 hover:bg-green-700"
             >
               Get Data
             </button>
           </div>
+          {/* Scan progress overlay */}
+{(scanStatus.active || scanStatus.progress) && (
+  <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[1200] min-w-80">
+    <div className={`rounded-xl px-5 py-4 shadow-2xl border ${
+      scanStatus.active
+        ? 'bg-gray-900/95 border-blue-500/50'
+        : scanStatus.progress.startsWith('Complete')
+        ? 'bg-gray-900/95 border-green-500/50'
+        : 'bg-gray-900/95 border-red-500/50'
+    }`}>
+      <div className="flex items-center gap-3">
+        {scanStatus.active ? (
+          <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin flex-shrink-0" />
+        ) : scanStatus.progress.startsWith('Complete') ? (
+          <div className="w-4 h-4 rounded-full bg-green-500 flex-shrink-0" />
+        ) : (
+          <div className="w-4 h-4 rounded-full bg-red-500 flex-shrink-0" />
+        )}
+        <div>
+          <p className={`text-sm font-medium ${
+            scanStatus.active ? 'text-blue-300'
+            : scanStatus.progress.startsWith('Complete') ? 'text-green-300'
+            : 'text-red-300'
+          }`}>
+            {scanStatus.active ? 'Live Satellite Scan Running' : scanStatus.progress.startsWith('Complete') ? 'Scan Complete' : 'Scan Failed'}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{scanStatus.progress}</p>
+        </div>
+      </div>
+
+      {/* Progress steps */}
+      {scanStatus.active && (
+        <div className="mt-3 space-y-1.5">
+          {[
+            'Connecting to Google Earth Engine...',
+            'Fetching 2019 satellite imagery...',
+            'Fetching 2023 satellite imagery...',
+            'Running NDBI change detection...',
+            'Downloading results from GEE...',
+            'Extracting flagged zones...',
+          ].map((step, i) => {
+            const steps = [
+              'Connecting',
+              'Fetching 2019',
+              'Fetching 2023',
+              'Running NDBI',
+              'Downloading',
+              'Extracting',
+            ]
+            const currentIdx = steps.findIndex(s => scanStatus.progress.includes(s))
+            const done = currentIdx > i
+            const active = currentIdx === i
+
+            return (
+              <div key={i} className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  done ? 'bg-green-500'
+                  : active ? 'bg-blue-400 animate-pulse'
+                  : 'bg-gray-700'
+                }`} />
+                <p className={`text-xs ${
+                  done ? 'text-green-400'
+                  : active ? 'text-blue-300'
+                  : 'text-gray-600'
+                }`}>{step}</p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  </div>
+)}
         </div>
       </div>
     </div>
@@ -530,37 +753,20 @@ export default function App() {
     return null
   }
 
-<<<<<<< Updated upstream
-  function DrawControl({ drawMode, onDraw }: { drawMode: 'none'|'circle'|'pen'|'rectangle', onDraw: (geojson: any|null) => void }) {
-=======
-  function DrawControl({ drawMode, onDraw, onCircleDraw }: { drawMode: boolean, onDraw: (geojson: any|null) => void, onCircleDraw: (center:[number, number], radius:number) => void }) {
->>>>>>> Stashed changes
+  function DrawControl({ drawMode, onDraw, onCircleDraw }: { drawMode: 'none'|'circle'|'pen'|'rectangle', onDraw: (geojson: any|null) => void, onCircleDraw: (center:[number, number], radius:number) => void }) {
     const map = useMap()
     useEffect(() => {
       ;(window as any).mapInstance = map
       const drawnItems = new (window as any).L.FeatureGroup()
       map.addLayer(drawnItems)
 
-<<<<<<< Updated upstream
       const drawControl = new (L.Control as any).Draw({
-        // Use option objects instead of booleans for nested option groups.
-        // Passing `true` previously caused leaflet-draw to attempt to set
-        // properties on a boolean (TypeError). Empty objects enable defaults.
         edit: { featureGroup: drawnItems, edit: {}, remove: {} },
-=======
-      const drawControl = new (((window as any).L.Control) as any).Draw({
-        edit: { featureGroup: drawnItems },
->>>>>>> Stashed changes
         draw: {
           polygon: {},
           polyline: false,
-<<<<<<< Updated upstream
           rectangle: {},
           circle: false,
-=======
-          rectangle: true,
-          circle: true,
->>>>>>> Stashed changes
           marker: false,
           circlemarker: false
         },
@@ -575,19 +781,15 @@ export default function App() {
         const layer = e.layer
         drawnItems.clearLayers()
         drawnItems.addLayer(layer)
-<<<<<<< Updated upstream
-        // If user drew a rectangle, trigger backend pipeline for that bbox
         const geojson = layer.toGeoJSON()
         const type = e.layerType || (geojson && geojson.geometry && geojson.geometry.type)
         if (type === 'Rectangle' || type === 'Polygon') {
-          // For rectangles created by leaflet-draw, layer.getBounds() is available
           if (layer.getBounds) {
             const b = layer.getBounds()
             const minLat = b.getSouth()
             const minLng = b.getWest()
             const maxLat = b.getNorth()
             const maxLng = b.getEast()
-            // POST bbox to backend to start processing
             axios.post('http://localhost:8000/process_bbox', {
               minx: minLng,
               miny: minLat,
@@ -595,13 +797,11 @@ export default function App() {
               maxy: maxLat
             }).then(res => {
               const jobId = res.data.job_id
-              // poll job endpoint until done
               const poll = setInterval(() => {
                 axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
                   if (r.data.status === 'done' && r.data.result) {
                     clearInterval(poll)
                     setZones(r.data.result.features || r.data.result)
-                    // generate a simple summary
                     axios.get('http://localhost:8000/zones/summary').then(s => setSummary(s.data)).catch(()=>{})
                     onDraw(r.data.result)
                   } else if (r.data.status === 'error') {
@@ -616,17 +816,13 @@ export default function App() {
             return
           }
         }
-        onDraw(geojson)
-=======
         if (layer.getRadius && layer.getLatLng) {
           const center = layer.getLatLng()
           const radius = layer.getRadius()
           onCircleDraw([center.lat, center.lng], radius)
         } else {
-          const geojson = layer.toGeoJSON()
           onDraw(geojson)
         }
->>>>>>> Stashed changes
       })
 
       map.on(((window as any).L.Draw.Event).DELETED, function () {
@@ -729,5 +925,17 @@ export default function App() {
         onEnd()
       }
     })
+    return null
+  }
+
+  function PulsingMarker({ lat, lng }: { lat: number, lng: number }) {
+    const map = useMap()
+    useEffect(() => {
+      const html = `<div class="pulse-container"><div class="pulse-ring"></div><div class="pulse-dot"></div></div>`
+      const icon = L.divIcon({ className: 'pulse-icon', html, iconSize: [24,24], iconAnchor: [12,12] })
+      const m = L.marker([lat, lng], { icon, interactive: false })
+      m.addTo(map)
+      return () => { try { map.removeLayer(m) } catch {} }
+    }, [lat, lng, map])
     return null
   }

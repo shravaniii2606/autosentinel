@@ -182,3 +182,47 @@
     border-right-color: var(--border);
   }
 }
+
+/* Pulsing critical zone marker */
+.pulse-container {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  position: relative;
+}
+.pulse-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ef4444; /* red */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 8px rgba(239,68,68,0.9);
+  z-index: 2;
+  animation: pulse-dot 1.6s ease-out infinite;
+}
+.pulse-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(239,68,68,0.25);
+  z-index: 1;
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.9 }
+  70% { transform: translate(-50%, -50%) scale(2.8); opacity: 0.12 }
+  100% { transform: translate(-50%, -50%) scale(3.2); opacity: 0 }
+}
+
+@keyframes pulse-dot {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1 }
+  50% { transform: translate(-50%, -50%) scale(1.25); opacity: 0.95 }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1 }
+}
