@@ -27,8 +27,47 @@ app.mount(
 
 # Load pre-computed Vasai Virar data
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'flagged_zones.json')
-with open(DATA_PATH) as f:
-    flagged_zones = json.load(f)
+
+VISION_DEFAULTS = {
+    "construction_detected": False,
+    "objects_found": [],
+    "vision_confidence": 0.0,
+    "crane_present": False,
+    "building_present": False,
+    "container_present": False,
+}
+
+
+def default_vision_fields():
+    return {
+        key: list(value) if isinstance(value, list) else value
+        for key, value in VISION_DEFAULTS.items()
+    }
+
+
+def normalize_zone(zone):
+    normalized = dict(zone)
+    for key, value in default_vision_fields().items():
+        normalized.setdefault(key, value)
+
+    normalized["objects_found"] = list(normalized.get("objects_found") or [])
+    normalized["vision_confidence"] = float(normalized.get("vision_confidence") or 0.0)
+    for key in ["construction_detected", "crane_present", "building_present", "container_present"]:
+        normalized[key] = bool(normalized.get(key, False))
+
+    return normalized
+
+
+def find_zone(zone_id: str):
+    target = str(zone_id)
+    for zone in flagged_zones:
+        if str(zone.get('id')) == target:
+            return zone
+    return None
+
+
+with open(DATA_PATH, encoding='utf-8') as f:
+    flagged_zones = [normalize_zone(zone) for zone in json.load(f)]
 
 # In-memory job store
 JOBS = {}
@@ -102,11 +141,23 @@ def get_zone_report(zone_id: str):  # changed int to str
         )
     return {"error": "Report not found"}
 
+@app.get("/zones/{zone_id}/vision")
+def get_zone_vision(zone_id: str):
+    zone = find_zone(zone_id)
+    if not zone:
+        return {"error": "Zone not found"}
+
+    return {
+        "objects_found": zone.get("objects_found", []),
+        "vision_confidence": zone.get("vision_confidence", 0.0),
+        "construction_detected": zone.get("construction_detected", False),
+    }
+
 @app.get("/zones/{zone_id}")
 def get_zone(zone_id: str):
-    for zone in flagged_zones:
-        if zone['id'] == zone_id:
-            return zone
+    zone = find_zone(zone_id)
+    if zone:
+        return zone
     return {"error": "Zone not found"}
 
 # ─── Live scan endpoints ────────────────────────────────────────────────────────
@@ -279,7 +330,8 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                 'severity': sev,
                 'risk_score': get_score(r['area_sqm']),
                 'action': action_map[sev],
-                'violation_type': 'LIVE_SCAN_RESULT'
+                'violation_type': 'LIVE_SCAN_RESULT',
+                **default_vision_fields()
             })
 
         zones.sort(key=lambda x: x['risk_score'], reverse=True)

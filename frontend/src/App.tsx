@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
+import L from 'leaflet'
 import axios from 'axios'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
@@ -17,6 +18,29 @@ interface Zone {
   action: string
   violation_type: string
   microsoft_confirmed: boolean
+  construction_detected?: boolean
+  objects_found?: string[]
+  vision_confidence?: number
+  crane_present?: boolean
+  building_present?: boolean
+  container_present?: boolean
+  yolo_boxes?: YoloBox[]
+}
+
+interface YoloBox {
+  label: string
+  confidence: number
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
+interface VisionFilters {
+  verified: boolean
+  crane: boolean
+  building: boolean
+  container: boolean
 }
 
 interface Summary {
@@ -55,41 +79,214 @@ const violationColor: Record<string, string> = {
   UNVERIFIED_ZONE: '#6b7280'
 }
 
+const visionObjectLabels: Record<string, string> = {
+  building: 'Building',
+  crane: 'Crane',
+  container: 'Container'
+}
 
-function ImageSlider({ beforeUrl, afterUrl }: { beforeUrl: string, afterUrl: string }) {
+const visionObjectMarkerLabels: Record<string, string> = {
+  building: 'BLD',
+  crane: 'CRN',
+  container: 'CNT'
+}
+
+const visionObjectColors: Record<string, string> = {
+  building: '#f97316',
+  crane: '#ef4444',
+  container: '#eab308'
+}
+
+const defaultVisionFilters: VisionFilters = {
+  verified: false,
+  crane: false,
+  building: false,
+  container: false
+}
+
+function getDetectedObjects(zone: Zone | null) {
+  if (!zone) return []
+
+  const objects = new Set<string>(
+    Array.isArray(zone.objects_found)
+      ? zone.objects_found.map(obj => String(obj).toLowerCase())
+      : []
+  )
+
+  if (zone.building_present) objects.add('building')
+  if (zone.crane_present) objects.add('crane')
+  if (zone.container_present) objects.add('container')
+
+  return ['building', 'crane', 'container'].filter(obj => objects.has(obj))
+}
+
+function getVisionBoxes(zone: Zone | null) {
+  return Array.isArray(zone?.yolo_boxes) ? zone!.yolo_boxes : []
+}
+
+function formatVisionConfidence(value?: number) {
+  const confidence = Number(value || 0)
+  const percent = confidence > 1 ? confidence : confidence * 100
+  return `${Math.round(percent)}%`
+}
+
+function getVisionStatuses(zone: Zone | null) {
+  if (!zone) return []
+
+  const statuses = []
+  if (zone.crane_present) statuses.push('Active Construction')
+  if (zone.building_present) statuses.push('Structure Found')
+  if (zone.container_present) statuses.push('Material Storage Detected')
+
+  return statuses
+}
+
+function getRiskBadges(zone: Zone | null) {
+  if (!zone) return []
+
+  const badges = []
+  if (zone.crane_present) badges.push({ label: 'LIVE CONSTRUCTION', className: 'bg-red-600 text-white' })
+  if (zone.building_present) badges.push({ label: 'STRUCTURE DETECTED', className: 'bg-orange-600 text-white' })
+  if (zone.container_present) badges.push({ label: 'MATERIALS FOUND', className: 'bg-yellow-500 text-gray-950' })
+
+  return badges
+}
+
+function normalizeYoloLabel(label: string) {
+  const normalized = String(label || '').toLowerCase()
+  if (normalized.includes('crane')) return 'crane'
+  if (normalized.includes('container')) return 'container'
+  if (normalized.includes('building') || normalized.includes('structure')) return 'building'
+  return normalized
+}
+
+
+function ImageSlider({ beforeUrl, afterUrl, boxes = [] }: { beforeUrl: string, afterUrl: string, boxes?: YoloBox[] }) {
   const [sliderPos, setSliderPos] = useState(50)
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const updateSize = () => {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      setContainerSize({ width: rect.width, height: rect.height })
+    }
+
+    updateSize()
+    const observer = new ResizeObserver(updateSize)
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const updateSlider = (clientX: number) => {
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const x = ((clientX - rect.left) / rect.width) * 100
     setSliderPos(Math.max(0, Math.min(100, x)))
   }
+
+  const handleMouseMove = (e: React.MouseEvent) => updateSlider(e.clientX)
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches[0]) updateSlider(e.touches[0].clientX)
+  }
+
+  const getBoxStyle = (box: YoloBox) => {
+    if (!containerSize.width || !containerSize.height || !imageSize.width || !imageSize.height) {
+      return null
+    }
+
+    const raw = [box.x1, box.y1, box.x2, box.y2].map(Number)
+    if (raw.some(value => !Number.isFinite(value))) return null
+
+    const [x1Raw, y1Raw, x2Raw, y2Raw] = raw
+    const normalized = Math.max(x1Raw, y1Raw, x2Raw, y2Raw) <= 1
+    const sourceX1 = normalized ? x1Raw * imageSize.width : x1Raw
+    const sourceY1 = normalized ? y1Raw * imageSize.height : y1Raw
+    const sourceX2 = normalized ? x2Raw * imageSize.width : x2Raw
+    const sourceY2 = normalized ? y2Raw * imageSize.height : y2Raw
+
+    const scale = Math.max(containerSize.width / imageSize.width, containerSize.height / imageSize.height)
+    const renderedWidth = imageSize.width * scale
+    const renderedHeight = imageSize.height * scale
+    const offsetX = (containerSize.width - renderedWidth) / 2
+    const offsetY = (containerSize.height - renderedHeight) / 2
+
+    const left = offsetX + Math.min(sourceX1, sourceX2) * scale
+    const top = offsetY + Math.min(sourceY1, sourceY2) * scale
+    const width = Math.abs(sourceX2 - sourceX1) * scale
+    const height = Math.abs(sourceY2 - sourceY1) * scale
+
+    if (width <= 0 || height <= 0) return null
+
+    return { left, top, width, height }
+  }
+
+  const fullImageWidth = containerSize.width ? `${containerSize.width}px` : '100%'
 
   return (
     <div
       ref={containerRef}
       className="relative w-full h-48 overflow-hidden rounded-lg cursor-col-resize select-none"
       onMouseMove={handleMouseMove}
+      onTouchMove={handleTouchMove}
+      onClick={(e) => updateSlider(e.clientX)}
     >
       {/* After image (bottom) */}
       <img
         src={afterUrl}
         alt="After 2023"
         className="absolute inset-0 w-full h-full object-cover"
+        onLoad={(e) => setImageSize({
+          width: e.currentTarget.naturalWidth,
+          height: e.currentTarget.naturalHeight
+        })}
       />
+
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-[1]">
+        {boxes.map((box, index) => {
+          const boxStyle = getBoxStyle(box)
+          if (!boxStyle) return null
+
+          const label = normalizeYoloLabel(box.label)
+          const color = visionObjectColors[label] || '#38bdf8'
+
+          return (
+            <div
+              key={`${box.label}-${index}`}
+              className="absolute border-2 rounded-sm shadow-[0_0_0_1px_rgba(0,0,0,0.75)]"
+              style={{
+                left: `${boxStyle.left}px`,
+                top: `${boxStyle.top}px`,
+                width: `${boxStyle.width}px`,
+                height: `${boxStyle.height}px`,
+                borderColor: color
+              }}
+            >
+              <span
+                className="absolute left-0 top-0 max-w-full truncate px-1 py-0.5 text-[10px] font-bold uppercase leading-none text-gray-950"
+                style={{ backgroundColor: color }}
+              >
+                {visionObjectLabels[label] || box.label} {formatVisionConfidence(box.confidence)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
 
       {/* Before image (top, clipped) */}
       <div
-        className="absolute inset-0 overflow-hidden"
+        className="absolute inset-0 overflow-hidden z-[2]"
         style={{ width: `${sliderPos}%` }}
       >
         <img
           src={beforeUrl}
           alt="Before 2019"
           className="absolute inset-0 h-full object-cover"
-          style={{ width: `${10000 / sliderPos}%`, maxWidth: 'none' }}
+          style={{ width: fullImageWidth, maxWidth: 'none' }}
         />
       </div>
 
@@ -113,7 +310,7 @@ function ImageSlider({ beforeUrl, afterUrl }: { beforeUrl: string, afterUrl: str
     </div>
   )
 }
-function ZoneImages({ zoneId, lat, lon }: { zoneId: number | string, lat: number, lon: number }) {
+function ZoneImages({ zoneId, lat, lon, boxes = [] }: { zoneId: number | string, lat: number, lon: number, boxes?: YoloBox[] }) {
   const [images, setImages] = useState<{
     has_images: boolean
     before_url: string | null
@@ -160,6 +357,7 @@ function ZoneImages({ zoneId, lat, lon }: { zoneId: number | string, lat: number
       <ImageSlider
         beforeUrl={images.before_url!}
         afterUrl={images.after_url!}
+        boxes={boxes}
       />
     </div>
   )
@@ -258,6 +456,7 @@ export default function App() {
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
   const [severityFilter, setSeverityFilter] = useState<string>('ALL')
   const [violationFilter, setViolationFilter] = useState<string>('ALL')
+  const [visionFilters, setVisionFilters] = useState<VisionFilters>(defaultVisionFilters)
   const [scanStatus, setScanStatus] = useState<{
     active: boolean
     progress: string
@@ -282,6 +481,11 @@ export default function App() {
   const filtered = zones.filter(z => {
     const sev = severityFilter === 'ALL' || z.severity === severityFilter
     const vio = violationFilter === 'ALL' || z.violation_type === violationFilter
+    const vision =
+      (!visionFilters.verified || Boolean(z.construction_detected)) &&
+      (!visionFilters.crane || Boolean(z.crane_present)) &&
+      (!visionFilters.building || Boolean(z.building_present)) &&
+      (!visionFilters.container || Boolean(z.container_present))
     // If a circle is drawn, also filter by distance
     if (circleCenter && circleRadius != null) {
       const toRad = (deg: number) => deg * Math.PI / 180
@@ -291,10 +495,18 @@ export default function App() {
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(circleCenter[0])) * Math.cos(toRad(z.lat)) * Math.sin(dLon/2) * Math.sin(dLon/2)
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
       const dist = R * c
-      return sev && vio && dist <= circleRadius
+      return sev && vio && vision && dist <= circleRadius
     }
-    return sev && vio
+    return sev && vio && vision
   })
+
+  const selectedObjects = getDetectedObjects(selectedZone)
+  const selectedStatuses = getVisionStatuses(selectedZone)
+  const selectedRiskBadges = getRiskBadges(selectedZone)
+  const selectedBoxes = getVisionBoxes(selectedZone)
+  const toggleVisionFilter = (key: keyof VisionFilters) => {
+    setVisionFilters(prev => ({ ...prev, [key]: !prev[key] }))
+  }
 
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
@@ -391,6 +603,33 @@ export default function App() {
             ))}
           </div>
         </div>
+        {/* Vision filters */}
+        <div className="p-4 border-b border-gray-800">
+          <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">FILTER BY VISION</p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { key: 'verified', label: 'Vision Verified' },
+              { key: 'crane', label: 'Crane Detected' },
+              { key: 'building', label: 'Building Detected' },
+              { key: 'container', label: 'Container Detected' },
+            ].map(filter => (
+              <button
+                key={filter.key}
+                onClick={() => toggleVisionFilter(filter.key as keyof VisionFilters)}
+                className="text-xs px-2 py-1 rounded-full transition-colors"
+                style={{
+                  backgroundColor: visionFilters[filter.key as keyof VisionFilters]
+                    ? '#0f766e'
+                    : '#374151',
+                  color: 'white'
+                }}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
     {selectedZone?.microsoft_confirmed && (
   <div className="text-xs px-2 py-1 rounded mb-3 inline-block bg-blue-600 ml-2">
     ✓ Microsoft Verified
@@ -424,6 +663,42 @@ export default function App() {
                 style={{ backgroundColor: violationColor[selectedZone.violation_type] || '#374151' }}
               >
                 {selectedZone.violation_type.replace(/_/g, ' ')}
+              </div>
+
+              <div className="mb-3 space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedZone.construction_detected && (
+                    <span className="text-xs font-bold px-2 py-1 rounded bg-emerald-600 text-white">
+                      Vision Verified
+                    </span>
+                  )}
+                  {selectedZone.crane_present && (
+                    <span className="text-xs font-bold px-2 py-1 rounded bg-orange-600 text-white">
+                      Active Construction
+                    </span>
+                  )}
+                </div>
+
+                <div className="rounded bg-gray-900/70 border border-gray-700/60 p-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Vision confidence</span>
+                    <span className="font-bold text-white">
+                      {formatVisionConfidence(selectedZone.vision_confidence)}
+                    </span>
+                  </div>
+                  {selectedObjects.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {selectedObjects.map(obj => (
+                        <span
+                          key={obj}
+                          className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-100"
+                        >
+                          {visionObjectLabels[obj]}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Details */}
