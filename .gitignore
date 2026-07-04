@@ -2,4 +2,11 @@ backend/venv/
 frontend/node_modules/
 __pycache__/
 *.pyc
-.env
+.envc
+cache/
+data/vasai_buildings_microsoft.geojson
+data/*.tif
+backend/venv/
+frontend/node_modules/
+__pycache__/
+*.pyc
