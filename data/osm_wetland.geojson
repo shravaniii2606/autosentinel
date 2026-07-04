@@ -1,0 +1,1 @@
+{"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"violation_type": "WETLAND_ENCROACHMENT", "score_boost": 10}, "geometry": {"type": "Polygon", "coordinates": [[[72.8, 19.35], [72.84, 19.35], [72.84, 19.38], [72.8, 19.38], [72.8, 19.35]]]}}]}

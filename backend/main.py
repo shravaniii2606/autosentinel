@@ -8,8 +8,8 @@ import os
 import json
 import uuid
 import threading
+import importlib.util
 import numpy as np
-
 app = FastAPI()
 
 app.add_middleware(
@@ -45,9 +45,21 @@ def default_vision_fields():
     }
 
 
+def default_legal_fields():
+    return {
+        'bhuvan_land_type': 'unverified',
+        'osm_flags': [],
+        'legal_flags': [],
+        'risk_boost_total': 0.0,
+        'legal_explanation': ''
+    }
+
+
 def normalize_zone(zone):
     normalized = dict(zone)
     for key, value in default_vision_fields().items():
+        normalized.setdefault(key, value)
+    for key, value in default_legal_fields().items():
         normalized.setdefault(key, value)
 
     normalized["objects_found"] = list(normalized.get("objects_found") or [])
@@ -64,6 +76,58 @@ def find_zone(zone_id: str):
         if str(zone.get('id')) == target:
             return zone
     return None
+
+
+def find_live_zone(zone_id: str):
+    target = str(zone_id)
+    for job in JOBS.values():
+        result = job.get('result')
+        if isinstance(result, list):
+            for zone in result:
+                if str(zone.get('id')) == target:
+                    return zone, job
+    return None, None
+
+
+def _sanitize_obj(obj):
+    try:
+        import numpy as _np
+        import pandas as _pd
+        from shapely.geometry.base import BaseGeometry as _BaseGeometry
+        from shapely.geometry import mapping as _mapping
+    except Exception:
+        _np = None
+        _pd = None
+        _BaseGeometry = None
+        _mapping = None
+
+    if obj is None:
+        return None
+    if _BaseGeometry is not None and isinstance(obj, _BaseGeometry):
+        return _mapping(obj)
+    if _np is not None and isinstance(obj, _np.generic):
+        return obj.item()
+    if _np is not None and isinstance(obj, _np.ndarray):
+        return obj.tolist()
+    if _pd is not None and hasattr(_pd, 'Series') and isinstance(obj, _pd.Series):
+        return {k: _sanitize_obj(obj[k]) for k in obj.index}
+    if isinstance(obj, dict):
+        return {k: _sanitize_obj(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_obj(v) for v in obj]
+    return obj
+
+
+def _sanitize_job(job: dict):
+    return {k: _sanitize_obj(v) for k, v in job.items()}
+
+
+def load_generate_report_module():
+    script_path = os.path.join(os.path.dirname(__file__), '..', 'notebooks', 'generate_report.py')
+    spec = importlib.util.spec_from_file_location('generate_report', script_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 with open(DATA_PATH, encoding='utf-8') as f:
@@ -117,22 +181,34 @@ def get_zone_images(zone_id: str):
 
 @app.get("/zones/{zone_id}/report")
 def get_zone_report(zone_id: str):  # changed int to str
-    report_path = os.path.join(
-        os.path.dirname(__file__), '..', 'data', f'report_zone_{zone_id}.pdf'
-    )
-    
+    base = os.path.join(os.path.dirname(__file__), '..')
+    report_path = os.path.join(base, 'data', f'report_zone_{zone_id}.pdf')
+
     if not os.path.exists(report_path):
-        # Only generate reports for pre-computed integer zones
-        try:
-            int_id = int(zone_id)
-            script_path = os.path.join(
-                os.path.dirname(__file__), '..', 'notebooks', 'generate_report.py'
+        live_zone, live_job = find_live_zone(zone_id)
+        if live_zone is not None:
+            if live_job.get('status') != 'done':
+                return {"error": "Live scan report unavailable until scan completes"}
+            module = load_generate_report_module()
+            before_path = os.path.join(base, 'data', 'images', f'zone_{zone_id}_before.png')
+            after_path = os.path.join(base, 'data', 'images', f'zone_{zone_id}_after.png')
+            module.generate_report(
+                live_zone,
+                report_path,
+                before_path=before_path,
+                after_path=after_path,
             )
-            subprocess.run([sys.executable, script_path, str(int_id)], check=True)
-        except ValueError:
-            # Live scan zone — no pre-generated report
-            return {"error": "Report generation for live scan zones coming soon"}
-    
+        else:
+            # Only generate reports for pre-computed integer zones
+            try:
+                int_id = int(zone_id)
+                script_path = os.path.join(
+                    os.path.dirname(__file__), '..', 'notebooks', 'generate_report.py'
+                )
+                subprocess.run([sys.executable, script_path, str(int_id)], check=True)
+            except ValueError:
+                return {"error": "Report generation for live scan zones coming soon"}
+
     if os.path.exists(report_path):
         return FileResponse(
             report_path,
@@ -162,6 +238,15 @@ def get_zone(zone_id: str):
 
 # ─── Live scan endpoints ────────────────────────────────────────────────────────
 
+@app.post("/scan")
+async def scan_area(request: Request, background_tasks: BackgroundTasks):
+    payload = await request.json()
+    return create_scan_job(payload, background_tasks)
+
+@app.get("/scan/{job_id}")
+def get_scan_job(job_id: str):
+    return get_job(job_id)
+
 @app.post("/zones/query")
 async def query_zones(request: Request, background_tasks: BackgroundTasks):
     """Called by frontend Get Data button — extracts bbox from drawn polygon and triggers live GEE scan"""
@@ -186,21 +271,16 @@ async def query_zones(request: Request, background_tasks: BackgroundTasks):
         'maxy': max(lats)
     }
 
-    job_id = str(uuid.uuid4())[:8]
-    JOBS[job_id] = {
-        "status": "processing",
-        "progress": "Initializing satellite scan...",
-        "result": None,
-        "error": None
-    }
-
-    background_tasks.add_task(run_gee_pipeline, job_id, bbox)
-    return {"job_id": job_id, "status": "processing", "zones": []}
+    return create_scan_job(bbox, background_tasks)
 
 @app.post("/process_bbox")
 async def process_bbox(request: Request, background_tasks: BackgroundTasks):
     """Called by leaflet-draw rectangle tool"""
     bbox = await request.json()
+    return create_scan_job(bbox, background_tasks)
+
+
+def create_scan_job(bbox: dict, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())[:8]
     JOBS[job_id] = {
         "status": "processing",
@@ -216,9 +296,7 @@ def get_job(job_id: str):
     job = JOBS.get(job_id)
     if not job:
         return {"status": "error", "error": "Job not found"}
-    return job
-
-# ─── GEE Pipeline ──────────────────────────────────────────────────────────────
+    return _sanitize_job(job)
 
 def run_gee_pipeline(job_id: str, bbox: dict):
     print(f"[JOB {job_id}] Starting GEE pipeline for bbox: {bbox}")
@@ -230,14 +308,15 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         import rasterio
         import requests as req
         import tempfile
+        import geopandas as gpd
+        import pandas as pd
 
         JOBS[job_id]["progress"] = "Connecting to Google Earth Engine..."
         ee.Initialize(project='ee-autosentinel')
 
-        # Support both bbox formats
-        west  = bbox.get('minx') or bbox.get('west')
+        west = bbox.get('minx') or bbox.get('west')
         south = bbox.get('miny') or bbox.get('south')
-        east  = bbox.get('maxx') or bbox.get('east')
+        east = bbox.get('maxx') or bbox.get('east')
         north = bbox.get('maxy') or bbox.get('north')
 
         print(f"[JOB {job_id}] BBox: W={west} S={south} E={east} N={north}")
@@ -261,7 +340,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
 
         JOBS[job_id]["progress"] = "Running NDBI change detection..."
         ndbi_before = before.normalizedDifference(['B11', 'B8'])
-        ndbi_after  = after.normalizedDifference(['B11', 'B8'])
+        ndbi_after = after.normalizedDifference(['B11', 'B8'])
         change = ndbi_after.subtract(ndbi_before)
         new_construction = change.gt(0.15)
 
@@ -285,7 +364,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
             image = src.read(1)
             transform = src.transform
 
-        print(f"[JOB {job_id}] Image shape: {image.shape}, unique values: {np.unique(image)}")
+        print(f"[JOB {job_id}] Image shape: {image.shape}, unique: {np.unique(image)}")
 
         mask = image == 1
         results = []
@@ -299,6 +378,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         os.unlink(tmp_path)
         print(f"[JOB {job_id}] Found {len(results)} zones after filtering")
 
+        # ── Severity + scoring ───────────────────────────────────────
         def get_severity(a):
             if a > 50000: return 'CRITICAL'
             elif a > 10000: return 'HIGH'
@@ -318,6 +398,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
             'LOW': 'Log for routine inspection'
         }
 
+        # Build initial zones list
         zones = []
         for idx, r in enumerate(results):
             centroid = r['geometry'].centroid
@@ -330,10 +411,225 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                 'severity': sev,
                 'risk_score': get_score(r['area_sqm']),
                 'action': action_map[sev],
-                'violation_type': 'LIVE_SCAN_RESULT',
-                **default_vision_fields()
+                'violation_type': 'UNVERIFIED_ZONE',
+                'bhuvan_land_type': 'unverified',
+                'osm_flags': [],
+                'legal_flags': [],
+                'risk_boost_total': 0.0,
+                'legal_explanation': '',
+                'microsoft_confirmed': False,
+                'construction_detected': True,
+                'vision_confidence': 0.5,
+                'objects_found': [],
             })
 
+        base_dir = os.path.join(os.path.dirname(__file__), '..')
+        bhuvan_path = os.path.join(base_dir, 'data', 'bhuvan_lulc.geojson')
+        osm_data_dir = os.path.join(base_dir, 'data')
+        os.makedirs(os.path.join(base_dir, 'data'), exist_ok=True)
+
+        JOBS[job_id]["progress"] = "Generating Bhuvan land-use layer..."
+        try:
+            subprocess.run([
+                sys.executable,
+                os.path.join(base_dir, 'notebooks', 'fetch_bhuvan_lulc.py'),
+                    "--source", os.path.join(base_dir, 'data', 'zoned_violations_enriched.geojson'),
+                '--output', bhuvan_path,
+                '--bbox', str(west), str(south), str(east), str(north)
+                
+            ], check=True)
+        except Exception as e:
+            print(f"[JOB {job_id}] Bhuvan generation failed: {e}")
+            JOBS[job_id]["progress"] = "Warning: Bhuvan generation failed, continuing with existing layer"
+
+        JOBS[job_id]["progress"] = "Exporting OSM infrastructure layers..."
+        try:
+            subprocess.run([
+                sys.executable,
+                os.path.join(base_dir, 'notebooks', 'fetch_osm_layers.py'),
+                '--output-dir', osm_data_dir,
+                '--bbox', str(south), str(west), str(north), str(east)
+            ], check=True)
+        except Exception as e:
+            print(f"[JOB {job_id}] OSM export failed: {e}")
+            JOBS[job_id]["progress"] = "Warning: OSM export failed, continuing with existing layers"
+
+        JOBS[job_id]["progress"] = "Applying Bhuvan and OSM legal scoring..."
+        try:
+            import tempfile
+            import json
+            import geopandas as gpd
+            from shapely.geometry import Point as ShapelyPoint
+
+            input_fd, input_path = tempfile.mkstemp(suffix='.geojson')
+            output_fd, output_path = tempfile.mkstemp(suffix='.geojson')
+            os.close(input_fd)
+            os.close(output_fd)
+            try:
+                live_gdf = gpd.GeoDataFrame(
+                    [{
+                        'id': z['id'],
+                        'area_sqm': z['area_sqm'],
+                        'risk_score': z['risk_score'],
+                        'severity': z['severity'],
+                        'action': z['action'],
+                        'violation_type': z['violation_type'],
+                        'bhuvan_land_type': z['bhuvan_land_type'],
+                        'osm_flags': z['osm_flags'],
+                        'legal_flags': z['legal_flags'],
+                        'risk_boost_total': z['risk_boost_total'],
+                        'legal_explanation': z['legal_explanation'],
+                        'microsoft_confirmed': z['microsoft_confirmed'],
+                        'construction_detected': z['construction_detected'],
+                        'vision_confidence': z['vision_confidence'],
+                        'objects_found': z['objects_found'],
+                    } for z in zones],
+                    geometry=[r['geometry'] for r in results],
+                    crs='EPSG:4326'
+                )
+                live_gdf.to_file(input_path, driver='GeoJSON')
+
+                subprocess.run([
+                    sys.executable,
+                    os.path.join(base_dir, 'notebooks', 'legal_cross_reference.py'),
+                    input_path,
+                    output_path,
+                    '--bhuvan', bhuvan_path,
+                    '--data-dir', osm_data_dir
+                ], check=True)
+
+                enriched = gpd.read_file(output_path)
+                if enriched.crs is None:
+                    enriched = enriched.set_crs('EPSG:4326')
+                # Compute centroids in a projected CRS for accurate results, then convert back to WGS84
+                try:
+                    centroids_proj = enriched.to_crs('EPSG:3857').geometry.centroid
+                    centroids_wgs84 = gpd.GeoSeries(centroids_proj, crs='EPSG:3857').to_crs('EPSG:4326')
+                    enriched['lat'] = centroids_wgs84.y
+                    enriched['lon'] = centroids_wgs84.x
+                except Exception:
+                    # Fallback to simple centroid (best-effort)
+                    enriched = enriched.to_crs('EPSG:4326')
+                    enriched['lat'] = enriched.geometry.centroid.y
+                    enriched['lon'] = enriched.geometry.centroid.x
+                zones = []
+                for _, row in enriched.iterrows():
+                    zones.append({
+                        'id': row['id'],
+                        'lat': round(float(row['lat']), 6),
+                        'lon': round(float(row['lon']), 6),
+                        'area_sqm': float(row['area_sqm']),
+                        'severity': row['severity'],
+                        'risk_score': float(row.get('final_risk_score', row['risk_score'])),
+                        'action': row['action'],
+                        'violation_type': row.get('violation_type', 'UNVERIFIED_ZONE'),
+                        'bhuvan_land_type': row.get('bhuvan_land_type', 'unverified'),
+                        'osm_flags': row.get('osm_flags', []),
+                        'legal_flags': row.get('legal_flags', []),
+                        'risk_boost_total': float(row.get('risk_boost_total', 0)),
+                        'legal_explanation': row.get('legal_explanation', ''),
+                        'microsoft_confirmed': bool(row.get('microsoft_confirmed', False)),
+                        'construction_detected': bool(row.get('construction_detected', False)),
+                        'vision_confidence': float(row.get('vision_confidence', 0.0)),
+                        'objects_found': row.get('objects_found', []) if isinstance(row.get('objects_found', []), list) else []
+                    })
+            finally:
+                try:
+                    os.unlink(input_path)
+                except Exception:
+                    pass
+                try:
+                    os.unlink(output_path)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[JOB {job_id}] Legal scoring failed: {e}")
+            JOBS[job_id]["progress"] = "Live scan completed, legal scoring unavailable"
+
+        # ── Microsoft building cross-reference ───────────────────────
+        JOBS[job_id]["progress"] = "Cross-referencing Microsoft buildings..."
+        try:
+            from shapely.geometry import Point as ShapelyPoint
+
+            def lat_lon_to_quadkey(lat, lon, zoom=9):
+                import math
+                lat_rad = math.radians(lat)
+                n = 2 ** zoom
+                x = int((lon + 180) / 360 * n)
+                y = int((1 - math.log(math.tan(lat_rad) + 1/math.cos(lat_rad)) / math.pi) / 2 * n)
+                quadkey = ''
+                for i in range(zoom, 0, -1):
+                    digit = 0
+                    mask = 1 << (i - 1)
+                    if x & mask: digit += 1
+                    if y & mask: digit += 2
+                    quadkey += str(digit)
+                return quadkey
+
+            center_lat = (north + south) / 2
+            center_lon = (east + west) / 2
+            quadkey = lat_lon_to_quadkey(center_lat, center_lon, zoom=9)
+            print(f"[JOB {job_id}] Microsoft quadkey: {quadkey}")
+
+            ms_df = pd.read_csv(
+                'https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv'
+            )
+            matches = ms_df[ms_df['Url'].str.contains(f'quadkey={quadkey}', na=False)]
+
+            if len(matches) > 0:
+                import gzip
+                import io
+                import json as json_lib
+
+                tile_url = matches.iloc[0]['Url']
+                r = req.get(tile_url, timeout=120)
+
+                buildings = []
+                with gzip.open(io.BytesIO(r.content), 'rt') as f:
+                    for line in f:
+                        try:
+                            obj = json_lib.loads(line)
+                            coords = obj['geometry']['coordinates'][0][0]
+                            lon_b, lat_b = coords[0], coords[1]
+                            if west <= lon_b <= east and south <= lat_b <= north:
+                                buildings.append(shape(obj['geometry']))
+                        except Exception:
+                            continue
+
+                print(f"[JOB {job_id}] Microsoft buildings in area: {len(buildings)}")
+
+                if buildings:
+                    ms_gdf = gpd.GeoDataFrame(
+                        geometry=buildings, crs='EPSG:4326'
+                    )
+                    zone_points = gpd.GeoDataFrame(
+                        zones,
+                        geometry=[ShapelyPoint(z['lon'], z['lat']) for z in zones],
+                        crs='EPSG:4326'
+                    )
+                    ms_joined = gpd.sjoin(
+                        zone_points.reset_index(drop=True),
+                        ms_gdf.reset_index(drop=True),
+                        how='left',
+                        predicate='within'
+                    )
+                    ms_joined = ms_joined[~ms_joined.index.duplicated(keep='first')]
+
+                    confirmed_count = 0
+                    for i, zone in enumerate(zones):
+                        if i < len(ms_joined):
+                            has_match = not pd.isna(ms_joined.iloc[i].get('index_right'))
+                            zone['microsoft_confirmed'] = bool(has_match)
+                            if has_match:
+                                zone['risk_score'] = min(100, zone['risk_score'] + 5)
+                                confirmed_count += 1
+
+                    print(f"[JOB {job_id}] Microsoft confirmed: {confirmed_count}/{len(zones)}")
+
+        except Exception as ms_err:
+            print(f"[JOB {job_id}] Microsoft cross-ref skipped: {ms_err}")
+
+        # ── Final sort and complete ──────────────────────────────────
         zones.sort(key=lambda x: x['risk_score'], reverse=True)
 
         JOBS[job_id]["status"] = "done"
@@ -348,6 +644,8 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         JOBS[job_id]["status"] = "error"
         JOBS[job_id]["error"] = str(e)
         JOBS[job_id]["progress"] = f"Failed: {str(e)}"
+
+
 @app.get("/zones/{zone_id}/live-images")
 async def get_live_images(zone_id: str, lat: float, lon: float, background_tasks: BackgroundTasks):
     """Fetch before/after satellite thumbnail for any coordinate on demand"""

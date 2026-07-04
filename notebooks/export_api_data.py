@@ -18,11 +18,16 @@ for idx, row in gdf.iterrows():
         'lon': round(float(row['lon']), 6),
         'area_sqm': round(float(row['area_sqm']), 1),
         'severity': row['severity'],
-        'risk_score': float(row['risk_score']),
-        'action': row['action']
+        'risk_score': float(row.get('final_risk_score', row.get('risk_score', 0))),
+        'action': row['action'],
+        'bhuvan_land_type': row.get('bhuvan_land_type', 'unverified'),
+        'osm_flags': row.get('osm_flags', []),
+        'legal_flags': row.get('legal_flags', []),
+        'risk_boost_total': float(row.get('risk_boost_total', 0)),
+        'legal_explanation': row.get('legal_explanation', '')
     })
 
-# Sort by risk score descending
+# Sort by final risk score descending
 output.sort(key=lambda x: x['risk_score'], reverse=True)
 
 # Save

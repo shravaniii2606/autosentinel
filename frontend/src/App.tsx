@@ -17,6 +17,11 @@ interface Zone {
   risk_score: number
   action: string
   violation_type: string
+  bhuvan_land_type?: string
+  osm_flags?: string[]
+  legal_flags?: string[]
+  risk_boost_total?: number
+  legal_explanation?: string
   microsoft_confirmed: boolean
   construction_detected?: boolean
   objects_found?: string[]
@@ -146,8 +151,8 @@ function getRiskBadges(zone: Zone | null) {
 
   const badges = []
   if (zone.crane_present) badges.push({ label: 'LIVE CONSTRUCTION', className: 'bg-red-600 text-white' })
-  if (zone.building_present) badges.push({ label: 'STRUCTURE DETECTED', className: 'bg-orange-600 text-white' })
-  if (zone.container_present) badges.push({ label: 'MATERIALS FOUND', className: 'bg-yellow-500 text-gray-950' })
+  if (zone.building_present) badges.push({ label: 'STRUCTURE DETECTED', className: 'bg-slate-200 text-slate-900' })
+  if (zone.container_present) badges.push({ label: 'MATERIALS FOUND', className: 'bg-slate-200 text-slate-900' })
 
   return badges
 }
@@ -267,7 +272,7 @@ function ImageSlider({ beforeUrl, afterUrl, boxes = [] }: { beforeUrl: string, a
               }}
             >
               <span
-                className="absolute left-0 top-0 max-w-full truncate px-1 py-0.5 text-[10px] font-bold uppercase leading-none text-gray-950"
+                className="absolute left-0 top-0 max-w-full truncate px-1 py-0.5 text-[10px] font-bold uppercase leading-none text-slate-900"
                 style={{ backgroundColor: color }}
               >
                 {visionObjectLabels[label] || box.label} {formatVisionConfidence(box.confidence)}
@@ -292,19 +297,19 @@ function ImageSlider({ beforeUrl, afterUrl, boxes = [] }: { beforeUrl: string, a
 
       {/* Slider line */}
       <div
-        className="absolute top-0 bottom-0 w-0.5 bg-white z-10"
+        className="absolute top-0 bottom-0 w-0.5 bg-sky-50 z-10"
         style={{ left: `${sliderPos}%` }}
       >
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-          <span className="text-gray-800 text-xs font-bold">◀▶</span>
+        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-sky-50 rounded-full flex items-center justify-center shadow-lg">
+          <span className="text-slate-900 text-xs font-bold">◀▶</span>
         </div>
       </div>
 
       {/* Labels */}
-      <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded z-10">
+      <div className="absolute bottom-2 left-2 bg-slate-900/80 text-white text-xs px-2 py-0.5 rounded z-10">
         2019
       </div>
-      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded z-10">
+      <div className="absolute bottom-2 right-2 bg-slate-900/80 text-white text-xs px-2 py-0.5 rounded z-10">
         2023
       </div>
     </div>
@@ -337,7 +342,7 @@ function ZoneImages({ zoneId, lat, lon, boxes = [] }: { zoneId: number | string,
 
   if (loading) {
     return (
-      <div className="mt-3 p-3 bg-gray-800 rounded text-xs text-gray-400 text-center animate-pulse">
+      <div className="mt-3 p-3 bg-sky-50 rounded text-xs text-slate-500 text-center animate-pulse">
         Fetching satellite imagery...
       </div>
     )
@@ -345,7 +350,7 @@ function ZoneImages({ zoneId, lat, lon, boxes = [] }: { zoneId: number | string,
 
   if (!images || !images.has_images) {
     return (
-      <div className="mt-3 p-2 bg-gray-700/50 rounded text-xs text-gray-400 text-center">
+      <div className="mt-3 p-2 bg-sky-50 rounded text-xs text-slate-500 text-center">
         Satellite imagery unavailable for this zone
       </div>
     )
@@ -353,7 +358,7 @@ function ZoneImages({ zoneId, lat, lon, boxes = [] }: { zoneId: number | string,
 
   return (
     <div className="mt-3">
-      <p className="text-xs text-gray-500 mb-2">SATELLITE EVIDENCE — drag to compare</p>
+      <p className="text-xs text-slate-500 mb-2">SATELLITE EVIDENCE — drag to compare</p>
       <ImageSlider
         beforeUrl={images.before_url!}
         afterUrl={images.after_url!}
@@ -390,21 +395,21 @@ function LiveScanPanel({ onZonesReceived }: { onZonesReceived: (zones: Zone[]) =
     setProgress('Starting scan...')
 
     try {
-      const res = await axios.post('http://localhost:8000/scan', drawnBounds)
+      const res = await axios.post('http://localhost:8000/process_bbox', drawnBounds)
       const id = res.data.job_id
       setJobId(id)
 
       // Poll every 5 seconds
       pollRef.current = setInterval(async () => {
-        const status = await axios.get(`http://localhost:8000/scan/${id}`)
+        const status = await axios.get(`http://localhost:8000/jobs/${id}`)
         setProgress(status.data.progress)
 
-        if (status.data.status === 'completed') {
+        if (status.data.status === 'done' && status.data.result) {
           clearInterval(pollRef.current)
           setScanning(false)
-          onZonesReceived(status.data.zones)
-          setProgress(`Done — ${status.data.zones.length} zones found`)
-        } else if (status.data.status === 'failed') {
+          onZonesReceived(status.data.result)
+          setProgress(`Done — ${status.data.result.length} zones found`)
+        } else if (status.data.status === 'error') {
           clearInterval(pollRef.current)
           setScanning(false)
           setProgress(`Failed: ${status.data.error}`)
@@ -417,9 +422,9 @@ function LiveScanPanel({ onZonesReceived }: { onZonesReceived: (zones: Zone[]) =
   }
 
   return (
-    <div className="p-4 border-b border-gray-800">
-      <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">LIVE SCAN</p>
-      <p className="text-xs text-gray-400 mb-3">
+    <div className="p-4 border-b border-slate-200 bg-sky-50 rounded-lg">
+      <p className="text-xs text-slate-500 mb-2 font-medium tracking-wider">LIVE SCAN</p>
+      <p className="text-xs text-slate-500 mb-3">
         {drawnBounds
           ? `Area selected: ${drawnBounds.north.toFixed(3)}°N, ${drawnBounds.west.toFixed(3)}°W`
           : 'Draw an area on the map using the Pen tool'}
@@ -427,17 +432,17 @@ function LiveScanPanel({ onZonesReceived }: { onZonesReceived: (zones: Zone[]) =
       <button
         onClick={startScan}
         disabled={scanning || !drawnBounds}
-        className="w-full py-2 rounded text-xs font-bold transition-colors disabled:opacity-50"
-        style={{ backgroundColor: scanning ? '#374151' : '#16a34a', color: 'white' }}
+        className="w-full py-2 rounded text-xs font-bold transition-colors disabled:opacity-50 text-white"
+        style={{ backgroundColor: scanning ? '#2563eb' : '#0284c7' }}
       >
         {scanning ? 'Scanning...' : 'Scan Selected Area'}
       </button>
       {progress && (
-        <div className="mt-2 p-2 bg-gray-800 rounded">
-          <p className="text-xs text-green-400">{progress}</p>
+        <div className="mt-2 p-2 bg-sky-50 rounded">
+          <p className="text-xs text-blue-600">{progress}</p>
           {scanning && (
-            <div className="mt-1 h-1 bg-gray-700 rounded overflow-hidden">
-              <div className="h-full bg-green-500 animate-pulse" style={{ width: '60%' }} />
+            <div className="mt-1 h-1 bg-sky-100 rounded overflow-hidden">
+              <div className="h-full bg-blue-500 animate-pulse" style={{ width: '60%' }} />
             </div>
           )}
         </div>
@@ -462,16 +467,19 @@ export default function App() {
     progress: string
     jobId: string | null
   }>({ active: false, progress: '', jobId: null })
+  const [mapInstance, setMapInstance] = useState<any>(null)
+  const [coordinateLat, setCoordinateLat] = useState<string>('')
+  const [coordinateLng, setCoordinateLng] = useState<string>('')
 
   const liveSummary = {
-  total: zones.length,
-  severity_breakdown: {
-    CRITICAL: zones.filter(z => z.severity === 'CRITICAL').length,
-    HIGH: zones.filter(z => z.severity === 'HIGH').length,
-    MEDIUM: zones.filter(z => z.severity === 'MEDIUM').length,
-    LOW: zones.filter(z => z.severity === 'LOW').length,
+    total: zones.length,
+    severity_breakdown: {
+      CRITICAL: zones.filter(z => z.severity === 'CRITICAL').length,
+      HIGH: zones.filter(z => z.severity === 'HIGH').length,
+      MEDIUM: zones.filter(z => z.severity === 'MEDIUM').length,
+      LOW: zones.filter(z => z.severity === 'LOW').length,
+    }
   }
-}
 
   useEffect(() => {
     axios.get('http://localhost:8000/zones').then(res => setZones(res.data.zones))
@@ -508,47 +516,64 @@ export default function App() {
     setVisionFilters(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const flyToCoordinates = () => {
+    const lat = Number(coordinateLat)
+    const lng = Number(coordinateLng)
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      alert('Please enter valid latitude and longitude values.')
+      return
+    }
+    if (!mapInstance) return
+
+    mapInstance.flyTo([lat, lng], 14, { duration: 1 })
+    setSelectedZone(null)
+    setDrawnGeoJSON(null)
+    setCircleCenter(null)
+    setCircleRadius(null)
+  }
+
   return (
-    <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
+    <div className="flex h-screen bg-sky-50 text-slate-900 overflow-hidden">
 
       {/* Sidebar */}
-      <div className="w-96 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto">
+      <div className="w-96 flex-shrink-0 bg-sky-50 border-r border-slate-200 flex flex-col overflow-y-auto">
 
         {/* Header */}
-        <div className="p-5 border-b border-gray-800">
+        <div className="p-5 border-b border-slate-200">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
-            <h1 className="text-lg font-bold text-white">AutoSentinel</h1>
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
+            <h1 className="text-lg font-bold text-slate-900">AutoSentinel</h1>
           </div>
-          <p className="text-xs text-gray-400">Unauthorized Construction Detection System</p>
+          <p className="text-xs text-slate-500">Unauthorized Construction Detection System</p>
           {summary && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               {summary.area} · {summary.period}
             </p>
           )}
         </div>
 
         {/* Summary cards */}
-        <div className="p-4 border-b border-gray-800">
-  <p className="text-xs text-gray-500 mb-3 font-medium tracking-wider">DETECTION SUMMARY</p>
+        <div className="p-4 border-b border-slate-200">
+  <p className="text-xs text-slate-500 mb-3 font-medium tracking-wider">DETECTION SUMMARY</p>
   <div className="grid grid-cols-2 gap-2">
     {Object.entries(liveSummary.severity_breakdown).map(([level, count]) => (
       <div
         key={level}
         onClick={() => setSeverityFilter(severityFilter === level ? 'ALL' : level)}
-        className="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700 transition-colors"
+        className="bg-sky-50 rounded-lg p-3 cursor-pointer hover:bg-sky-100 transition-colors"
         style={{ borderLeft: `3px solid ${severityColor[level]}` }}
       >
         <div className="text-2xl font-bold" style={{ color: severityColor[level] }}>
           {count}
         </div>
-        <div className="text-xs text-gray-400 mt-0.5">{level}</div>
+        <div className="text-xs text-slate-500 mt-0.5">{level}</div>
       </div>
     ))}
   </div>
-  <div className="mt-2 bg-gray-800 rounded-lg p-3">
-    <div className="text-2xl font-bold text-white">{liveSummary.total}</div>
-    <div className="text-xs text-gray-400">
+  <div className="mt-2 bg-sky-50 rounded-lg p-3">
+    <div className="text-2xl font-bold text-slate-900">{liveSummary.total}</div>
+    <div className="text-xs text-slate-500">
       Total Flagged Zones
       {zones.length > 931 && (
         <span className="text-green-400 ml-2">+{zones.length - 931} live</span>
@@ -556,13 +581,52 @@ export default function App() {
     </div>
   </div>
 </div>
-<div className="mt-2 bg-gray-800 rounded-lg p-3">
-  <div className="text-2xl font-bold text-blue-400">{summary?.microsoft_confirmed || 0}</div>
-  <div className="text-xs text-gray-400">Microsoft AI Verified</div>
+<div className="mt-2 bg-sky-50 rounded-lg p-3">
+  <div className="text-2xl font-bold text-blue-600">{summary?.microsoft_confirmed || 0}</div>
+  <div className="text-xs text-slate-500">Microsoft AI Verified</div>
 </div>
+        {/* Coordinate jump */}
+        <div className="p-4 border-b border-slate-200">
+          <p className="text-xs text-slate-500 mb-2 font-medium tracking-wider">GO TO COORDINATES</p>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={coordinateLat}
+              onChange={e => setCoordinateLat(e.target.value)}
+              placeholder="Latitude"
+              className="w-full rounded-md border border-slate-300 bg-sky-50 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
+            />
+            <input
+              type="text"
+              value={coordinateLng}
+              onChange={e => setCoordinateLng(e.target.value)}
+              placeholder="Longitude"
+              className="w-full rounded-md border border-slate-300 bg-sky-50 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <button
+            onClick={flyToCoordinates}
+            className="mt-3 w-full rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition-colors hover:bg-blue-500"
+          >
+            Center map
+          </button>
+          {selectedZone && (
+            <button
+              onClick={() => {
+                setCoordinateLat(String(selectedZone.lat))
+                setCoordinateLng(String(selectedZone.lon))
+                setTimeout(flyToCoordinates, 0)
+              }}
+              className="mt-2 w-full rounded-md border border-blue-500 bg-sky-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-blue-600 transition-colors hover:bg-blue-100"
+            >
+              Use selected zone coordinates
+            </button>
+          )}
+        </div>
+
         {/* Severity filter */}
-        <div className="p-4 border-b border-gray-800">
-          <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">FILTER BY SEVERITY</p>
+        <div className="p-4 border-b border-slate-200">
+          <p className="text-xs text-slate-500 mb-2 font-medium tracking-wider">FILTER BY SEVERITY</p>
           <div className="flex flex-wrap gap-1.5">
             {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(level => (
               <button
@@ -583,8 +647,8 @@ export default function App() {
         </div>
 
         {/* Violation type filter */}
-        <div className="p-4 border-b border-gray-800">
-          <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">FILTER BY VIOLATION</p>
+        <div className="p-4 border-b border-slate-200">
+          <p className="text-xs text-slate-500 mb-2 font-medium tracking-wider">FILTER BY VIOLATION</p>
           <div className="flex flex-wrap gap-1.5">
             {['ALL', 'FOREST_ENCROACHMENT', 'AGRICULTURAL_LAND', 'UNVERIFIED_ZONE'].map(type => (
               <button
@@ -604,8 +668,8 @@ export default function App() {
           </div>
         </div>
         {/* Vision filters */}
-        <div className="p-4 border-b border-gray-800">
-          <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">FILTER BY VISION</p>
+        <div className="p-4 border-b border-slate-200">
+          <p className="text-xs text-slate-500 mb-2 font-medium tracking-wider">FILTER BY VISION</p>
           <div className="flex flex-wrap gap-1.5">
             {[
               { key: 'verified', label: 'Vision Verified' },
@@ -631,17 +695,17 @@ export default function App() {
         </div>
 
     {selectedZone?.microsoft_confirmed && (
-  <div className="text-xs px-2 py-1 rounded mb-3 inline-block bg-blue-600 ml-2">
+  <div className="text-xs px-2 py-1 rounded mb-3 inline-block bg-blue-600 text-white ml-2">
     ✓ Microsoft Verified
   </div>
 )}
 
         {/* Selected zone detail */}
         {selectedZone && (
-          <div className="p-4 border-b border-gray-800">
-            <p className="text-xs text-gray-500 mb-2 font-medium tracking-wider">SELECTED ZONE</p>
+          <div className="p-4 border-b border-slate-200">
+            <p className="text-xs text-slate-500 mb-2 font-medium tracking-wider">SELECTED ZONE</p>
             <div
-              className="rounded-lg p-4 bg-gray-800"
+              className="rounded-lg p-4 bg-sky-50"
               style={{ borderLeft: `3px solid ${severityColor[selectedZone.severity]}` }}
             >
               {/* Severity + score */}
@@ -679,10 +743,10 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="rounded bg-gray-900/70 border border-gray-700/60 p-2">
+                <div className="rounded bg-sky-50 border border-slate-200 p-2">
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Vision confidence</span>
-                    <span className="font-bold text-white">
+                    <span className="text-slate-500">Vision confidence</span>
+                    <span className="font-bold text-slate-900">
                       {formatVisionConfidence(selectedZone.vision_confidence)}
                     </span>
                   </div>
@@ -691,7 +755,7 @@ export default function App() {
                       {selectedObjects.map(obj => (
                         <span
                           key={obj}
-                          className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-100"
+                          className="text-xs px-2 py-1 rounded bg-sky-50 text-slate-900"
                         >
                           {visionObjectLabels[obj]}
                         </span>
@@ -701,24 +765,51 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="mt-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs space-y-2">
+                <div className="flex justify-between text-slate-500">
+                  <span>Bhuvan Land Type</span>
+                  <span className="font-semibold text-slate-900">
+                    {selectedZone.bhuvan_land_type || 'Unverified'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>OSM overlays</span>
+                  <span className="font-semibold text-slate-900">
+                    {selectedZone.osm_flags?.map(flag => flag.replace(/_/g, ' ')).join(', ') || 'None'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>Risk boost</span>
+                  <span className="font-semibold text-slate-900">
+                    {selectedZone.risk_boost_total?.toFixed(1) ?? '0.0'}
+                  </span>
+                </div>
+              </div>
+              {selectedZone.legal_explanation && (
+                <div className="mt-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-900 mb-1">Legal confidence</p>
+                  <p>{selectedZone.legal_explanation}</p>
+                </div>
+              )}
+
               {/* Details */}
-              <div className="space-y-1.5 text-xs text-gray-300">
+              <div className="space-y-1.5 text-xs text-slate-500">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Area</span>
+                  <span className="text-slate-500">Area</span>
                   <span>{(selectedZone.area_sqm / 10000).toFixed(2)} hectares</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Coordinates</span>
+                  <span className="text-slate-500">Coordinates</span>
                   <span>{selectedZone.lat.toFixed(4)}, {selectedZone.lon.toFixed(4)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Zone ID</span>
+                  <span className="text-slate-500">Zone ID</span>
                   <span>#{selectedZone.id}</span>
                 </div>
               </div>
 
               {/* Action */}
-              <div className="mt-3 p-2 bg-yellow-900/30 border border-yellow-700/50 rounded text-xs text-yellow-300">
+              <div className="mt-3 p-2 bg-sky-50 border border-blue-200 rounded text-xs text-blue-700">
                 {selectedZone.action}
               </div>
              {/* Download report button */}
@@ -726,7 +817,7 @@ export default function App() {
   <a href={`http://localhost:8000/zones/${selectedZone.id}/report`}
   target="_blank"
   rel="noopener noreferrer"
-  className="mt-3 w-full block text-center bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors"
+  className="mt-3 w-full block text-center bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors"
 >
   Download Official Report (PDF)
 </a>
@@ -738,7 +829,7 @@ export default function App() {
 
         {/* Zone count */}
         <div className="p-4 mt-auto">
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-slate-500">
             Showing {filtered.length} of {zones.length} zones
           </p>
         </div>
@@ -752,9 +843,18 @@ export default function App() {
           className="h-full w-full"
           style={{ background: '#1a1a2e' }}
         >
+          <MapInstanceSetter onCreated={setMapInstance} />
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             attribution="© OpenStreetMap © CARTO"
+          />
+          <TileLayer
+            url="https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms"
+            layers="lulc50k"
+            format="image/png"
+            transparent={true}
+            opacity={0.5}
+            attribution="ISRO Bhuvan LULC"
           />
           {filtered.map(zone => (
             <CircleMarker
@@ -799,7 +899,9 @@ export default function App() {
           {drawnGeoJSON && (
             <GeoJsonLayer data={drawnGeoJSON} />
           )}
-
+     
+          {/* Map instance setter */}
+          <MapInstanceSetter onCreated={setMapInstance} />
           {/* Map draw handler: mousedown -> drag -> mouseup */}
           <MapDrawHandler
             drawMode={drawMode}
@@ -839,9 +941,9 @@ export default function App() {
         </MapContainer>
 
         {/* Map overlay — stats */}
-        <div className="absolute top-4 right-4 bg-gray-900/90 backdrop-blur rounded-lg p-3 z-[1000]">
-          <p className="text-xs text-gray-400">Active filters</p>
-          <p className="text-sm font-bold text-white">{filtered.length} zones visible</p>
+        <div className="absolute top-4 right-4 bg-sky-50/90 backdrop-blur rounded-lg p-3 z-[1000] shadow-sm border border-slate-200">
+          <p className="text-xs text-slate-500">Active filters</p>
+          <p className="text-sm font-bold text-slate-900">{filtered.length} zones visible</p>
         </div>
         {/* Draw controls at bottom */}
         <div className="absolute left-4 bottom-4 z-[1100]">
@@ -855,7 +957,7 @@ export default function App() {
                 }
                 setDrawMode(drawMode === 'pen' ? 'none' : 'pen')
               }}
-              className={`px-3 py-2 rounded-md font-medium ${drawMode === 'pen' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+              className={`px-3 py-2 rounded-md font-medium ${drawMode === 'pen' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-900 hover:bg-slate-300'}`}
             >
               {drawMode === 'pen' ? 'Drawing (pen) — drag to draw' : 'Pen'}
             </button>
@@ -881,7 +983,7 @@ export default function App() {
                   .then(res => setSummary(res.data))
                   .catch(() => {})
               }}
-              className="px-3 py-2 rounded-md font-medium bg-red-600 hover:bg-red-700"
+              className="px-3 py-2 rounded-md font-medium bg-slate-200 text-slate-900 hover:bg-slate-300"
             >
               Clear
             </button>
@@ -892,11 +994,11 @@ export default function App() {
                     setCircleRadius(prev => Math.max(50, (prev || 0) - 50))
                     setCircleDrawn(true)
                   }}
-                  className="px-3 py-2 rounded-md font-medium bg-gray-700 hover:bg-gray-600"
+                  className="px-3 py-2 rounded-md font-medium bg-slate-200 text-slate-900 hover:bg-slate-300"
                 >
                   −
                 </button>
-                <span className="px-3 py-2 rounded-md bg-gray-800 text-xs font-medium">
+                <span className="px-3 py-2 rounded-md bg-slate-200 text-slate-900 text-xs font-medium">
                   {(circleRadius/1000).toFixed(2)} km
                 </span>
                 <button
@@ -904,7 +1006,7 @@ export default function App() {
                     setCircleRadius(prev => (prev || 0) + 50)
                     setCircleDrawn(true)
                   }}
-                  className="px-3 py-2 rounded-md font-medium bg-gray-700 hover:bg-gray-600"
+                  className="px-3 py-2 rounded-md font-medium bg-slate-200 text-slate-900 hover:bg-slate-300"
                 >
                   +
                 </button>
@@ -941,7 +1043,7 @@ export default function App() {
     setScanStatus({ active: false, progress: 'Request failed', jobId: null })
   })
 }}
-  className="px-3 py-2 rounded-md font-medium bg-green-600 hover:bg-green-700"
+  className="px-3 py-2 rounded-md font-medium bg-blue-600 text-white hover:bg-blue-700"
 >
   Get Data
 </button>
@@ -951,10 +1053,10 @@ export default function App() {
   <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[1200] min-w-80">
     <div className={`rounded-xl px-5 py-4 shadow-2xl border ${
       scanStatus.active
-        ? 'bg-gray-900/95 border-blue-500/50'
+        ? 'bg-sky-50/95 border-blue-500/50'
         : scanStatus.progress.startsWith('Complete')
-        ? 'bg-gray-900/95 border-green-500/50'
-        : 'bg-gray-900/95 border-red-500/50'
+        ? 'bg-sky-50/95 border-green-500/50'
+        : 'bg-sky-50/95 border-red-500/50'
     }`}>
       <div className="flex items-center gap-3">
         {scanStatus.active ? (
@@ -966,13 +1068,13 @@ export default function App() {
         )}
         <div>
           <p className={`text-sm font-medium ${
-            scanStatus.active ? 'text-blue-300'
-            : scanStatus.progress.startsWith('Complete') ? 'text-green-300'
-            : 'text-red-300'
+            scanStatus.active ? 'text-blue-600'
+            : scanStatus.progress.startsWith('Complete') ? 'text-green-600'
+            : 'text-red-600'
           }`}>
             {scanStatus.active ? 'Live Satellite Scan Running' : scanStatus.progress.startsWith('Complete') ? 'Scan Complete' : 'Scan Failed'}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">{scanStatus.progress}</p>
+          <p className="text-xs text-slate-500 mt-0.5">{scanStatus.progress}</p>
         </div>
       </div>
 
@@ -1004,12 +1106,12 @@ export default function App() {
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                   done ? 'bg-green-500'
                   : active ? 'bg-blue-400 animate-pulse'
-                  : 'bg-gray-700'
+                  : 'bg-slate-300'
                 }`} />
                 <p className={`text-xs ${
-                  done ? 'text-green-400'
-                  : active ? 'text-blue-300'
-                  : 'text-gray-600'
+                  done ? 'text-green-600'
+                  : active ? 'text-blue-600'
+                  : 'text-slate-500'
                 }`}>{step}</p>
               </div>
             )
@@ -1078,22 +1180,26 @@ export default function App() {
             const minLng = b.getWest()
             const maxLat = b.getNorth()
             const maxLng = b.getEast()
-            // POST bbox to backend to start processing
-            axios.post('http://localhost:8000/process_bbox', {
+            const bboxDetail = {
               minx: minLng,
               miny: minLat,
               maxx: maxLng,
-              maxy: maxLat
-            }).then(res => {
+              maxy: maxLat,
+              west: minLng,
+              south: minLat,
+              east: maxLng,
+              north: maxLat
+            }
+            window.dispatchEvent(new CustomEvent('bbox-drawn', { detail: bboxDetail }))
+            // POST bbox to backend to start processing
+            axios.post('http://localhost:8000/process_bbox', bboxDetail).then(res => {
               const jobId = res.data.job_id
-              // poll job endpoint until done
               const poll = setInterval(() => {
                 axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
                   if (r.data.status === 'done' && r.data.result) {
                     clearInterval(poll)
-                    setZones(r.data.result.features || r.data.result)
-                    // generate a simple summary
-                    axios.get('http://localhost:8000/zones/summary').then(s => setSummary(s.data)).catch(()=>{})
+                    setZones(r.data.result)
+                    axios.get('http://localhost:8000/zones/summary').then(s => setSummary(s.data)).catch(() => {})
                     onDraw(r.data.result)
                   } else if (r.data.status === 'error') {
                     clearInterval(poll)
@@ -1210,6 +1316,14 @@ export default function App() {
         onEnd()
       }
     })
+    return null
+  }
+
+  function MapInstanceSetter({ onCreated }: { onCreated: (map: any) => void }) {
+    const map = useMap()
+    useEffect(() => {
+      onCreated(map)
+    }, [map, onCreated])
     return null
   }
 
