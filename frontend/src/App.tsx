@@ -845,9 +845,10 @@ export default function App() {
         >
           <MapInstanceSetter onCreated={setMapInstance} />
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution="© OpenStreetMap © CARTO"
-          />
+  url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+  attribution="© Google"
+  maxZoom={21}
+/>
           <TileLayer
             url="https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms"
             layers="lulc50k"

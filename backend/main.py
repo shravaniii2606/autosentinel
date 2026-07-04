@@ -616,14 +616,21 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                     ms_joined = ms_joined[~ms_joined.index.duplicated(keep='first')]
 
                     confirmed_count = 0
+                    # DEBUG
+                    print(f"[JOB {job_id}] Zones before boost: {[z['risk_score'] for z in zones[:3]]}")
+                    print(f"[JOB {job_id}] Joined rows: {len(ms_joined)}")
+                    print(f"[JOB {job_id}] Violation types: {ms_joined['violation_type'].value_counts().to_dict()}")
                     for i, zone in enumerate(zones):
-                        if i < len(ms_joined):
-                            has_match = not pd.isna(ms_joined.iloc[i].get('index_right'))
-                            zone['microsoft_confirmed'] = bool(has_match)
-                            if has_match:
-                                zone['risk_score'] = min(100, zone['risk_score'] + 5)
-                                confirmed_count += 1
+                        if i < len(joined):
+                           row = joined.iloc[i]
+                           vtype = row.get('violation_type')
+                           boost = row.get('score_boost', 0)
+                           print(f"[JOB {job_id}] Zone {i}: vtype={vtype} boost={boost} notna={pd.notna(vtype)}")
+                        if pd.notna(vtype):
+                           zone['violation_type'] = str(vtype)
+                           zone['risk_score'] = min(100, round(zone['risk_score'] + float(boost), 1))
 
+                    print(f"[JOB {job_id}] Zones after boost: {[z['risk_score'] for z in zones[:3]]}")
                     print(f"[JOB {job_id}] Microsoft confirmed: {confirmed_count}/{len(zones)}")
 
         except Exception as ms_err:

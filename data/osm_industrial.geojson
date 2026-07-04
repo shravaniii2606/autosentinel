@@ -3,6 +3,6 @@
 "name": "osm_industrial",
 "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
 "features": [
-
+{ "type": "Feature", "properties": { "landuse": "industrial", "osm_id": 1158933425, "osm_type": "way" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 72.8716063, 19.2539766 ], [ 72.8716814, 19.2544856 ], [ 72.8723949, 19.254516 ], [ 72.8725827, 19.2546477 ], [ 72.8729716, 19.2547186 ], [ 72.8733551, 19.2545793 ], [ 72.8730762, 19.2535259 ], [ 72.872816, 19.2537082 ], [ 72.8716063, 19.2539766 ] ] ] } }
 ]
 }
