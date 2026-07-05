@@ -39,7 +39,6 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     score = zone.get('risk_score', 0)
     area = zone.get('area_sqm', 0)
     violation = zone.get('violation_type', 'UNVERIFIED_ZONE')
-    action_text = zone.get('action', 'Review flagged zone and determine next steps.')
 
     title_style = ParagraphStyle('title', fontSize=22, fontName='Helvetica-Bold',
         textColor=colors.HexColor('#CC0000'), spaceAfter=4)
@@ -70,7 +69,6 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
         ['Severity Level', sev],
         ['Risk Score', f"{score} / 100"],
         ['Violation Type', violation.replace('_', ' ')],
-        ['Bhuvan Land Type', zone.get('bhuvan_land_type', 'Unverified').replace('_', ' ')],
         ['OSM Overlays', ', '.join(zone.get('osm_flags', [])) or 'None'],
         ['Legal Flags', ', '.join(zone.get('legal_flags', [])) or 'None'],
         ['Risk Boost', f"{zone.get('risk_boost_total', 0):.1f}"],
@@ -213,44 +211,6 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
             'Images are pre-generated for Critical severity zones only. '
             'Use the AutoSentinel dashboard to view live satellite thumbnails for this location.',
             ParagraphStyle('body', fontSize=9, textColor=colors.HexColor('#888888'), leading=14)))
-
-    story.append(Spacer(1, 0.5 * cm))
-
-    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#DDDDDD'), spaceAfter=8))
-    story.append(Paragraph('Recommended Action',
-        ParagraphStyle('h2', fontSize=13, fontName='Helvetica-Bold',
-            spaceAfter=6, textColor=colors.HexColor('#222222'))))
-    story.append(Paragraph(action_text,
-        ParagraphStyle('action', fontSize=10, fontName='Helvetica-Bold',
-            textColor=colors.HexColor(severity_hex.get(sev, '#006600')), spaceAfter=6)))
-
-    action_detail = {
-        'CRITICAL': (
-            '1. Dispatch ground inspection team immediately to verify satellite findings.\n'
-            '2. Cross-check location against RERA permit database for registered projects.\n'
-            '3. If no valid permit found, issue Stop Work Notice under MRTP Act Section 52.\n'
-            '4. Initiate demolition proceedings if construction exceeds permissible limits.\n'
-            '5. File case with District Collector if land falls under Forest/Government category.'
-        ),
-        'HIGH': (
-            '1. Schedule ground inspection within 48 hours.\n'
-            '2. Verify building permit status with local municipal authority.\n'
-            '3. Issue notice to owner if construction is found to be unauthorized.\n'
-            '4. Escalate to CRITICAL if structure is found on protected land.'
-        ),
-        'MEDIUM': (
-            '1. Add to inspection queue for next available field officer visit.\n'
-            '2. Check online permit records before physical inspection.\n'
-            '3. Issue advisory notice if minor violations found.'
-        ),
-        'LOW': (
-            '1. Log in municipal records for routine inspection cycle.\n'
-            '2. No immediate action required unless escalated by complaint.'
-        ),
-    }.get(sev, action_text)
-
-    story.append(Paragraph(action_detail.replace('\n', '<br/>'),
-        ParagraphStyle('detail', fontSize=9, textColor=colors.HexColor('#333333'), leading=16)))
 
     story.append(Spacer(1, 0.5 * cm))
 

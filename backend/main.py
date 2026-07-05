@@ -419,7 +419,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                 'legal_explanation': '',
                 'microsoft_confirmed': False,
                 'construction_detected': True,
-                'vision_confidence': 0.5,
+                'vision_confidence': 0.0,
                 'objects_found': [],
             })
 

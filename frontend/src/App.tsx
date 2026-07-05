@@ -26,6 +26,7 @@ interface Zone {
   construction_detected?: boolean
   objects_found?: string[]
   vision_confidence?: number
+  ml_confidence?: number
   crane_present?: boolean
   building_present?: boolean
   container_present?: boolean
@@ -62,7 +63,7 @@ interface Summary {
 }
 
 const severityColor: Record<string, string> = {
-  CRITICAL: '#ef4444',
+  CRITICAL: '#ff0000',
   HIGH: '#f97316',
   MEDIUM: '#eab308',
   LOW: '#22c55e'
@@ -133,6 +134,30 @@ function formatVisionConfidence(value?: number) {
   const confidence = Number(value || 0)
   const percent = confidence > 1 ? confidence : confidence * 100
   return `${Math.round(percent)}%`
+}
+
+function getZoneVisionConfidence(zone: Zone | null) {
+  if (!zone) return null
+
+  const boxConfidence = getVisionBoxes(zone)
+    .map(box => Number(box.confidence))
+    .filter(Number.isFinite)
+    .reduce((highest, confidence) => Math.max(highest, confidence), 0)
+
+  if (boxConfidence > 0) return boxConfidence
+
+  const visionConfidence = Number(zone.vision_confidence)
+  if (Number.isFinite(visionConfidence) && visionConfidence > 0) return visionConfidence
+
+  const mlConfidence = Number(zone.ml_confidence)
+  if (Number.isFinite(mlConfidence) && mlConfidence > 0) return mlConfidence
+
+  return null
+}
+
+function formatZoneVisionConfidence(zone: Zone | null) {
+  const confidence = getZoneVisionConfidence(zone)
+  return confidence == null ? 'N/A' : formatVisionConfidence(confidence)
 }
 
 function getVisionStatuses(zone: Zone | null) {
@@ -747,7 +772,7 @@ export default function App() {
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">Vision confidence</span>
                     <span className="font-bold text-slate-900">
-                      {formatVisionConfidence(selectedZone.vision_confidence)}
+                      {formatZoneVisionConfidence(selectedZone)}
                     </span>
                   </div>
                   {selectedObjects.length > 0 && (
@@ -767,12 +792,6 @@ export default function App() {
 
               <div className="mt-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs space-y-2">
                 <div className="flex justify-between text-slate-500">
-                  <span>Bhuvan Land Type</span>
-                  <span className="font-semibold text-slate-900">
-                    {selectedZone.bhuvan_land_type || 'Unverified'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-slate-500">
                   <span>OSM overlays</span>
                   <span className="font-semibold text-slate-900">
                     {selectedZone.osm_flags?.map(flag => flag.replace(/_/g, ' ')).join(', ') || 'None'}
@@ -785,13 +804,6 @@ export default function App() {
                   </span>
                 </div>
               </div>
-              {selectedZone.legal_explanation && (
-                <div className="mt-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs text-slate-700">
-                  <p className="font-semibold text-slate-900 mb-1">Legal confidence</p>
-                  <p>{selectedZone.legal_explanation}</p>
-                </div>
-              )}
-
               {/* Details */}
               <div className="space-y-1.5 text-xs text-slate-500">
                 <div className="flex justify-between">
@@ -808,10 +820,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Action */}
-              <div className="mt-3 p-2 bg-sky-50 border border-blue-200 rounded text-xs text-blue-700">
-                {selectedZone.action}
-              </div>
              {/* Download report button */}
 
   <a href={`http://localhost:8000/zones/${selectedZone.id}/report`}
