@@ -39,6 +39,12 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     score = zone.get('risk_score', 0)
     area = zone.get('area_sqm', 0)
     violation = zone.get('violation_type', 'UNVERIFIED_ZONE')
+    area_label = zone.get('area_label', 'Vasai Virar, Maharashtra')
+    period_label = zone.get('period_label', '2019-2023')
+    if ' vs ' in period_label:
+        before_year, after_year = period_label.split(' vs ')
+    else:
+        before_year, after_year = '2019', '2023'
 
     title_style = ParagraphStyle('title', fontSize=22, fontName='Helvetica-Bold',
         textColor=colors.HexColor('#CC0000'), spaceAfter=4)
@@ -49,7 +55,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     story.append(Paragraph('Unauthorized Construction Detection Report', sub_style))
     story.append(Paragraph(
         f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M IST')}  |  "
-        'Area: Vasai Virar, Maharashtra  |  Analysis Period: 2019-2023',
+        f'Area: {area_label}  |  Analysis Period: {before_year}-{after_year}',
         ParagraphStyle('meta', fontSize=8, textColor=colors.HexColor('#888888'))))
     story.append(HRFlowable(width='100%', thickness=1, color=colors.HexColor('#DDDDDD'), spaceAfter=12))
 
@@ -145,7 +151,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
         ['Construction Area', f"{area / 10000:.2f} ha", 'Primary driver - larger = higher score'],
         ['Land Classification', violation.replace('_', ' '), 'Determines violation severity'],
         ['NDBI Change Magnitude', '> 0.15 threshold', 'Confirms built-up area increase'],
-        ['Time Period', '2019 → 2023', '4-year change window'],
+        ['Time Period', f'{before_year} → {after_year}', 'Change detection window'],
         ['Final Score', f"{score}/100", f"Severity: {sev}"],
     ]
 
@@ -182,7 +188,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
 
     if os.path.exists(before_path) and os.path.exists(after_path):
         story.append(Paragraph(
-            'The images below show the flagged location in 2019 (before) and 2023 (after). '
+            f'The images below show the flagged location in {before_year} (before) and {after_year} (after). '
             'Visible change in land cover - new grey/brown built-up area replacing green or open land - '
             'confirms the satellite detection.',
             ParagraphStyle('body', fontSize=9, textColor=colors.HexColor('#555555'),
@@ -195,8 +201,8 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
 
         img_table = Table(
             [[img_before, img_after],
-             [Paragraph('2019 - Before Construction', label_style),
-              Paragraph('2023 - After Construction', label_style)]],
+             [Paragraph(f'{before_year} - Before Construction', label_style),
+              Paragraph(f'{after_year} - After Construction', label_style)]],
             colWidths=[8.5 * cm, 8.5 * cm]
         )
         img_table.setStyle(TableStyle([

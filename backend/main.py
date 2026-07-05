@@ -322,18 +322,18 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         print(f"[JOB {job_id}] BBox: W={west} S={south} E={east} N={north}")
         region = ee.Geometry.Rectangle([west, south, east, north])
 
-        JOBS[job_id]["progress"] = "Fetching 2019 satellite imagery..."
+        JOBS[job_id]["progress"] = "Fetching 2024 satellite imagery..."
         before = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2019-01-01', '2019-12-31')
+            .filterDate('2024-01-01', '2024-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .median()
             .clip(region))
 
-        JOBS[job_id]["progress"] = "Fetching 2023 satellite imagery..."
+        JOBS[job_id]["progress"] = "Fetching 2025 satellite imagery..."
         after = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2023-01-01', '2023-12-31')
+            .filterDate('2025-01-01', '2025-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .median()
             .clip(region))
@@ -400,6 +400,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
 
         # Build initial zones list
         zones = []
+        area_label = f"Custom scanned area ({south:.4f}, {west:.4f}) to ({north:.4f}, {east:.4f})"
         for idx, r in enumerate(results):
             centroid = r['geometry'].centroid
             sev = get_severity(r['area_sqm'])
@@ -421,6 +422,8 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                 'construction_detected': True,
                 'vision_confidence': 0.0,
                 'objects_found': [],
+                'area_label': area_label,
+                'period_label': '2024 vs 2025',
             })
 
         base_dir = os.path.join(os.path.dirname(__file__), '..')
@@ -683,13 +686,13 @@ async def get_live_images(zone_id: str, lat: float, lon: float, background_tasks
 
         before = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2019-01-01', '2019-12-31')
+            .filterDate('2024-01-01', '2024-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .median())
 
         after = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2023-01-01', '2023-12-31')
+            .filterDate('2025-01-01', '2025-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .median())
 

@@ -1040,6 +1040,13 @@ export default function App() {
         if (r.data.status === 'done' && r.data.result) {
           clearInterval(poll)
           setZones(prev => [...prev, ...r.data.result])
+          setSummary(prev => ({
+            total: prev?.total ?? 0,
+            severity_breakdown: prev?.severity_breakdown ?? { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
+            microsoft_confirmed: prev?.microsoft_confirmed ?? 0,
+            area: 'Vasai Virar baseline + custom scanned areas',
+            period: '2019-2023 baseline · 2024-2025 live scans',
+          }))
           setScanStatus({ active: false, progress: `Complete — ${r.data.result.length} new zones found`, jobId })
           setTimeout(() => setScanStatus({ active: false, progress: '', jobId: null }), 5000)
         } else if (r.data.status === 'error') {
@@ -1092,16 +1099,16 @@ export default function App() {
         <div className="mt-3 space-y-1.5">
           {[
             'Connecting to Google Earth Engine...',
-            'Fetching 2019 satellite imagery...',
-            'Fetching 2023 satellite imagery...',
+            'Fetching 2024 satellite imagery...',
+            'Fetching 2025 satellite imagery...',
             'Running NDBI change detection...',
             'Downloading results from GEE...',
             'Extracting flagged zones...',
           ].map((step, i) => {
             const steps = [
               'Connecting',
-              'Fetching 2019',
-              'Fetching 2023',
+              'Fetching 2024',
+              'Fetching 2025',
               'Running NDBI',
               'Downloading',
               'Extracting',
@@ -1207,8 +1214,14 @@ export default function App() {
                 axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
                   if (r.data.status === 'done' && r.data.result) {
                     clearInterval(poll)
-                    setZones(r.data.result)
-                    axios.get('http://localhost:8000/zones/summary').then(s => setSummary(s.data)).catch(() => {})
+                    setZones(prev => [...prev, ...r.data.result])
+                    setSummary(prev => ({
+                      total: prev?.total ?? 0,
+                      severity_breakdown: prev?.severity_breakdown ?? { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
+                      microsoft_confirmed: prev?.microsoft_confirmed ?? 0,
+                      area: 'Vasai Virar baseline + custom scanned areas',
+                      period: '2019-2023 baseline · 2024-2025 live scans',
+                    }))
                     onDraw(r.data.result)
                   } else if (r.data.status === 'error') {
                     clearInterval(poll)
