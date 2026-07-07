@@ -39,7 +39,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     score = zone.get('risk_score', 0)
     area = zone.get('area_sqm', 0)
     violation = zone.get('violation_type', 'UNVERIFIED_ZONE')
-    area_label = zone.get('area_label', 'Vasai Virar, Maharashtra')
+    area_label = zone.get('area_label', 'Selected area')
     period_label = zone.get('period_label', '2019-2023')
     if ' vs ' in period_label:
         before_year, after_year = period_label.split(' vs ')
@@ -61,7 +61,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
 
     sev_style = ParagraphStyle('sev', fontSize=16, fontName='Helvetica-Bold',
         textColor=colors.HexColor(severity_hex.get(sev, '#006600')), spaceAfter=4)
-    story.append(Paragraph(f'⚠ Severity: {sev}  |  Risk Score: {score}/100', sev_style))
+    story.append(Paragraph(f'Severity: {sev}  |  Risk Score: {score}/100', sev_style))
     story.append(Spacer(1, 0.3 * cm))
 
     story.append(Paragraph('Zone Details', ParagraphStyle('h2', fontSize=13,
@@ -104,7 +104,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
             f"This zone received a CRITICAL score of {score}/100 because the detected construction "
             f"covers {area / 10000:.1f} hectares - exceeding the 5-hectare threshold that indicates "
             'large-scale unauthorized development. Structures of this size cannot be accidental '
-            'extensions and require immediate enforcement action.'
+            'extensions and should be reviewed against local approvals.'
         )
     elif area > 10000:
         score_reason = (
@@ -116,19 +116,19 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
         score_reason = (
             f"This zone received a MEDIUM score of {score}/100 because the detected construction "
             f"covers {area / 10000:.2f} hectares - between 0.2 and 1 hectare. This is a moderate "
-            'unauthorized structure that warrants scheduled inspection.'
+            'satellite-detected change requiring human verification.'
         )
     else:
         score_reason = (
             f"This zone received a LOW score of {score}/100 because the detected construction "
-            f"covers {area:.0f} sq metres - a small structure that should be logged for routine inspection."
+            f"covers {area:.0f} sq metres - a small satellite-detected built-up change."
         )
 
     violation_reason = {
         'FOREST_ENCROACHMENT': (
             'The construction location falls within an area classified as protected forest or woodland '
-            'by ISRO Bhuvan land use data. Construction on forest land without Forest Department '
-            'clearance is prohibited under the Forest Conservation Act, 1980.'
+            'in the available reference overlays. Construction on forest land without Forest Department '
+            'clearance may be prohibited under the Forest Conservation Act, 1980.'
         ),
         'AGRICULTURAL_LAND': (
             'The construction location falls on land classified as agricultural. Converting agricultural '
@@ -174,13 +174,6 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     story.append(Paragraph(f'Land Classification Note: {violation_reason}',
         ParagraphStyle('body2', fontSize=9, textColor=colors.HexColor('#555555'),
             leading=14, spaceAfter=8)))
-    if zone.get('legal_explanation'):
-        story.append(Paragraph(
-            f"Legal Analysis: {zone.get('legal_explanation')}",
-            ParagraphStyle('body2', fontSize=9, textColor=colors.HexColor('#555555'),
-                leading=14, spaceAfter=8)
-        ))
-
     story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#DDDDDD'), spaceAfter=8))
     story.append(Paragraph('Satellite Evidence',
         ParagraphStyle('h2', fontSize=13, fontName='Helvetica-Bold',

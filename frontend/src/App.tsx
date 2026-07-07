@@ -31,6 +31,8 @@ interface Zone {
   building_present?: boolean
   container_present?: boolean
   yolo_boxes?: YoloBox[]
+  area_label?: string
+  period_label?: string
 }
 
 interface YoloBox {
@@ -108,6 +110,31 @@ const defaultVisionFilters: VisionFilters = {
   crane: false,
   building: false,
   container: false
+}
+
+const drawnAreaStorageKey = 'autosentinel.drawnArea'
+
+function mergeZones(current: Zone[], incoming: Zone[]) {
+  const byId = new Map<string, Zone>()
+  current.forEach(zone => byId.set(String(zone.id), zone))
+  incoming.forEach(zone => byId.set(String(zone.id), zone))
+  return Array.from(byId.values())
+}
+
+function getScanSummaryFromZones(zones: Zone[], fallback: Summary | null): Summary {
+  const latest = zones[zones.length - 1]
+  return {
+    total: zones.length,
+    severity_breakdown: {
+      CRITICAL: zones.filter(z => z.severity === 'CRITICAL').length,
+      HIGH: zones.filter(z => z.severity === 'HIGH').length,
+      MEDIUM: zones.filter(z => z.severity === 'MEDIUM').length,
+      LOW: zones.filter(z => z.severity === 'LOW').length,
+    },
+    microsoft_confirmed: zones.filter(z => z.microsoft_confirmed).length,
+    area: latest?.area_label || fallback?.area || 'Selected area',
+    period: latest?.period_label || fallback?.period || '2024 vs 2025',
+  }
 }
 
 function getDetectedObjects(zone: Zone | null) {
@@ -351,18 +378,25 @@ function ZoneImages({ zoneId, lat, lon, boxes = [] }: { zoneId: number | string,
   useEffect(() => {
     setLoading(true)
     setImages(null)
-    
-    // Try live-images endpoint for any zone
-    axios.get(`http://localhost:8000/zones/${zoneId}/live-images`, {
-      params: { lat, lon }
-    })
+
+    axios.get(`http://localhost:8000/zones/${zoneId}/images`)
       .then(res => {
-        setImages(res.data)
-        setLoading(false)
+        if (res.data?.has_images) {
+          setImages(res.data)
+          setLoading(false)
+          return null
+        }
+        return axios.get(`http://localhost:8000/zones/${zoneId}/live-images`, {
+          params: { lat, lon }
+        })
+      })
+      .then(res => {
+        if (res) setImages(res.data)
       })
       .catch(() => {
-        setLoading(false)
+        setImages(null)
       })
+      .finally(() => setLoading(false))
   }, [zoneId, lat, lon])
 
   if (loading) {
@@ -479,7 +513,14 @@ export default function App() {
   const [drawMode, setDrawMode] = useState<'none'|'circle'|'pen'>('none')
   const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
   const [circleRadius, setCircleRadius] = useState<number | null>(null) // meters
-  const [drawnGeoJSON, setDrawnGeoJSON] = useState<any | null>(null)
+  const [drawnGeoJSON, setDrawnGeoJSON] = useState<any | null>(() => {
+    try {
+      const saved = localStorage.getItem(drawnAreaStorageKey)
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
   const [circleDrawn, setCircleDrawn] = useState(false)
   const [zones, setZones] = useState<Zone[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -511,6 +552,16 @@ export default function App() {
     axios.get('http://localhost:8000/zones/summary').then(res => setSummary(res.data))
   }, [])
 
+  useEffect(() => {
+    try {
+      if (drawnGeoJSON) {
+        localStorage.setItem(drawnAreaStorageKey, JSON.stringify(drawnGeoJSON))
+      } else {
+        localStorage.removeItem(drawnAreaStorageKey)
+      }
+    } catch {}
+  }, [drawnGeoJSON])
+
   const filtered = zones.filter(z => {
     const sev = severityFilter === 'ALL' || z.severity === severityFilter
     const vio = violationFilter === 'ALL' || z.violation_type === violationFilter
@@ -537,6 +588,8 @@ export default function App() {
   const selectedStatuses = getVisionStatuses(selectedZone)
   const selectedRiskBadges = getRiskBadges(selectedZone)
   const selectedBoxes = getVisionBoxes(selectedZone)
+  const headerArea = selectedZone?.area_label || summary?.area
+  const headerPeriod = selectedZone?.period_label || summary?.period
   const toggleVisionFilter = (key: keyof VisionFilters) => {
     setVisionFilters(prev => ({ ...prev, [key]: !prev[key] }))
   }
@@ -553,7 +606,6 @@ export default function App() {
 
     mapInstance.flyTo([lat, lng], 14, { duration: 1 })
     setSelectedZone(null)
-    setDrawnGeoJSON(null)
     setCircleCenter(null)
     setCircleRadius(null)
   }
@@ -571,9 +623,9 @@ export default function App() {
             <h1 className="text-lg font-bold text-slate-900">AutoSentinel</h1>
           </div>
           <p className="text-xs text-slate-500">Unauthorized Construction Detection System</p>
-          {summary && (
+          {headerArea && (
             <p className="text-xs text-slate-500 mt-1">
-              {summary.area} · {summary.period}
+              {headerArea} · {headerPeriod}
             </p>
           )}
         </div>
@@ -1039,14 +1091,11 @@ export default function App() {
 
         if (r.data.status === 'done' && r.data.result) {
           clearInterval(poll)
-          setZones(prev => [...prev, ...r.data.result])
-          setSummary(prev => ({
-            total: prev?.total ?? 0,
-            severity_breakdown: prev?.severity_breakdown ?? { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
-            microsoft_confirmed: prev?.microsoft_confirmed ?? 0,
-            area: 'Vasai Virar baseline + custom scanned areas',
-            period: '2019-2023 baseline · 2024-2025 live scans',
-          }))
+          setZones(prev => {
+            const next = mergeZones(prev, r.data.result)
+            setSummary(current => getScanSummaryFromZones(next, current))
+            return next
+          })
           setScanStatus({ active: false, progress: `Complete — ${r.data.result.length} new zones found`, jobId })
           setTimeout(() => setScanStatus({ active: false, progress: '', jobId: null }), 5000)
         } else if (r.data.status === 'error') {
@@ -1207,31 +1256,7 @@ export default function App() {
               north: maxLat
             }
             window.dispatchEvent(new CustomEvent('bbox-drawn', { detail: bboxDetail }))
-            // POST bbox to backend to start processing
-            axios.post('http://localhost:8000/process_bbox', bboxDetail).then(res => {
-              const jobId = res.data.job_id
-              const poll = setInterval(() => {
-                axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
-                  if (r.data.status === 'done' && r.data.result) {
-                    clearInterval(poll)
-                    setZones(prev => [...prev, ...r.data.result])
-                    setSummary(prev => ({
-                      total: prev?.total ?? 0,
-                      severity_breakdown: prev?.severity_breakdown ?? { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
-                      microsoft_confirmed: prev?.microsoft_confirmed ?? 0,
-                      area: 'Vasai Virar baseline + custom scanned areas',
-                      period: '2019-2023 baseline · 2024-2025 live scans',
-                    }))
-                    onDraw(r.data.result)
-                  } else if (r.data.status === 'error') {
-                    clearInterval(poll)
-                    alert('Processing failed: ' + (r.data.error || 'unknown'))
-                  }
-                }).catch(() => {})
-              }, 5000)
-            }).catch(err => {
-              alert('Failed to start processing: ' + err)
-            })
+            onDraw(geojson)
             return
           }
         }
