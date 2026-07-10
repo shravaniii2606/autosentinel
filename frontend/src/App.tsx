@@ -26,10 +26,13 @@ interface Zone {
   construction_detected?: boolean
   objects_found?: string[]
   vision_confidence?: number
+  ml_confidence?: number
   crane_present?: boolean
   building_present?: boolean
   container_present?: boolean
   yolo_boxes?: YoloBox[]
+  area_label?: string
+  period_label?: string
 }
 
 interface YoloBox {
@@ -62,7 +65,7 @@ interface Summary {
 }
 
 const severityColor: Record<string, string> = {
-  CRITICAL: '#ef4444',
+  CRITICAL: '#ff0000',
   HIGH: '#f97316',
   MEDIUM: '#eab308',
   LOW: '#22c55e'
@@ -109,6 +112,31 @@ const defaultVisionFilters: VisionFilters = {
   container: false
 }
 
+const drawnAreaStorageKey = 'autosentinel.drawnArea'
+
+function mergeZones(current: Zone[], incoming: Zone[]) {
+  const byId = new Map<string, Zone>()
+  current.forEach(zone => byId.set(String(zone.id), zone))
+  incoming.forEach(zone => byId.set(String(zone.id), zone))
+  return Array.from(byId.values())
+}
+
+function getScanSummaryFromZones(zones: Zone[], fallback: Summary | null): Summary {
+  const latest = zones[zones.length - 1]
+  return {
+    total: zones.length,
+    severity_breakdown: {
+      CRITICAL: zones.filter(z => z.severity === 'CRITICAL').length,
+      HIGH: zones.filter(z => z.severity === 'HIGH').length,
+      MEDIUM: zones.filter(z => z.severity === 'MEDIUM').length,
+      LOW: zones.filter(z => z.severity === 'LOW').length,
+    },
+    microsoft_confirmed: zones.filter(z => z.microsoft_confirmed).length,
+    area: latest?.area_label || fallback?.area || 'Selected area',
+    period: latest?.period_label || fallback?.period || '2024 vs 2025',
+  }
+}
+
 function getDetectedObjects(zone: Zone | null) {
   if (!zone) return []
 
@@ -133,6 +161,30 @@ function formatVisionConfidence(value?: number) {
   const confidence = Number(value || 0)
   const percent = confidence > 1 ? confidence : confidence * 100
   return `${Math.round(percent)}%`
+}
+
+function getZoneVisionConfidence(zone: Zone | null) {
+  if (!zone) return null
+
+  const boxConfidence = getVisionBoxes(zone)
+    .map(box => Number(box.confidence))
+    .filter(Number.isFinite)
+    .reduce((highest, confidence) => Math.max(highest, confidence), 0)
+
+  if (boxConfidence > 0) return boxConfidence
+
+  const visionConfidence = Number(zone.vision_confidence)
+  if (Number.isFinite(visionConfidence) && visionConfidence > 0) return visionConfidence
+
+  const mlConfidence = Number(zone.ml_confidence)
+  if (Number.isFinite(mlConfidence) && mlConfidence > 0) return mlConfidence
+
+  return null
+}
+
+function formatZoneVisionConfidence(zone: Zone | null) {
+  const confidence = getZoneVisionConfidence(zone)
+  return confidence == null ? 'N/A' : formatVisionConfidence(confidence)
 }
 
 function getVisionStatuses(zone: Zone | null) {
@@ -326,18 +378,25 @@ function ZoneImages({ zoneId, lat, lon, boxes = [] }: { zoneId: number | string,
   useEffect(() => {
     setLoading(true)
     setImages(null)
-    
-    // Try live-images endpoint for any zone
-    axios.get(`http://localhost:8000/zones/${zoneId}/live-images`, {
-      params: { lat, lon }
-    })
+
+    axios.get(`http://localhost:8000/zones/${zoneId}/images`)
       .then(res => {
-        setImages(res.data)
-        setLoading(false)
+        if (res.data?.has_images) {
+          setImages(res.data)
+          setLoading(false)
+          return null
+        }
+        return axios.get(`http://localhost:8000/zones/${zoneId}/live-images`, {
+          params: { lat, lon }
+        })
+      })
+      .then(res => {
+        if (res) setImages(res.data)
       })
       .catch(() => {
-        setLoading(false)
+        setImages(null)
       })
+      .finally(() => setLoading(false))
   }, [zoneId, lat, lon])
 
   if (loading) {
@@ -454,7 +513,14 @@ export default function App() {
   const [drawMode, setDrawMode] = useState<'none'|'circle'|'pen'>('none')
   const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
   const [circleRadius, setCircleRadius] = useState<number | null>(null) // meters
-  const [drawnGeoJSON, setDrawnGeoJSON] = useState<any | null>(null)
+  const [drawnGeoJSON, setDrawnGeoJSON] = useState<any | null>(() => {
+    try {
+      const saved = localStorage.getItem(drawnAreaStorageKey)
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
   const [circleDrawn, setCircleDrawn] = useState(false)
   const [zones, setZones] = useState<Zone[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -486,6 +552,16 @@ export default function App() {
     axios.get('http://localhost:8000/zones/summary').then(res => setSummary(res.data))
   }, [])
 
+  useEffect(() => {
+    try {
+      if (drawnGeoJSON) {
+        localStorage.setItem(drawnAreaStorageKey, JSON.stringify(drawnGeoJSON))
+      } else {
+        localStorage.removeItem(drawnAreaStorageKey)
+      }
+    } catch {}
+  }, [drawnGeoJSON])
+
   const filtered = zones.filter(z => {
     const sev = severityFilter === 'ALL' || z.severity === severityFilter
     const vio = violationFilter === 'ALL' || z.violation_type === violationFilter
@@ -512,6 +588,8 @@ export default function App() {
   const selectedStatuses = getVisionStatuses(selectedZone)
   const selectedRiskBadges = getRiskBadges(selectedZone)
   const selectedBoxes = getVisionBoxes(selectedZone)
+  const headerArea = selectedZone?.area_label || summary?.area
+  const headerPeriod = selectedZone?.period_label || summary?.period
   const toggleVisionFilter = (key: keyof VisionFilters) => {
     setVisionFilters(prev => ({ ...prev, [key]: !prev[key] }))
   }
@@ -528,7 +606,6 @@ export default function App() {
 
     mapInstance.flyTo([lat, lng], 14, { duration: 1 })
     setSelectedZone(null)
-    setDrawnGeoJSON(null)
     setCircleCenter(null)
     setCircleRadius(null)
   }
@@ -546,9 +623,9 @@ export default function App() {
             <h1 className="text-lg font-bold text-slate-900">AutoSentinel</h1>
           </div>
           <p className="text-xs text-slate-500">Unauthorized Construction Detection System</p>
-          {summary && (
+          {headerArea && (
             <p className="text-xs text-slate-500 mt-1">
-              {summary.area} · {summary.period}
+              {headerArea} · {headerPeriod}
             </p>
           )}
         </div>
@@ -747,7 +824,7 @@ export default function App() {
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">Vision confidence</span>
                     <span className="font-bold text-slate-900">
-                      {formatVisionConfidence(selectedZone.vision_confidence)}
+                      {formatZoneVisionConfidence(selectedZone)}
                     </span>
                   </div>
                   {selectedObjects.length > 0 && (
@@ -767,12 +844,6 @@ export default function App() {
 
               <div className="mt-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs space-y-2">
                 <div className="flex justify-between text-slate-500">
-                  <span>Bhuvan Land Type</span>
-                  <span className="font-semibold text-slate-900">
-                    {selectedZone.bhuvan_land_type || 'Unverified'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-slate-500">
                   <span>OSM overlays</span>
                   <span className="font-semibold text-slate-900">
                     {selectedZone.osm_flags?.map(flag => flag.replace(/_/g, ' ')).join(', ') || 'None'}
@@ -785,13 +856,6 @@ export default function App() {
                   </span>
                 </div>
               </div>
-              {selectedZone.legal_explanation && (
-                <div className="mt-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs text-slate-700">
-                  <p className="font-semibold text-slate-900 mb-1">Legal confidence</p>
-                  <p>{selectedZone.legal_explanation}</p>
-                </div>
-              )}
-
               {/* Details */}
               <div className="space-y-1.5 text-xs text-slate-500">
                 <div className="flex justify-between">
@@ -808,10 +872,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Action */}
-              <div className="mt-3 p-2 bg-sky-50 border border-blue-200 rounded text-xs text-blue-700">
-                {selectedZone.action}
-              </div>
              {/* Download report button */}
 
   <a href={`http://localhost:8000/zones/${selectedZone.id}/report`}
@@ -1031,7 +1091,11 @@ export default function App() {
 
         if (r.data.status === 'done' && r.data.result) {
           clearInterval(poll)
-          setZones(prev => [...prev, ...r.data.result])
+          setZones(prev => {
+            const next = mergeZones(prev, r.data.result)
+            setSummary(current => getScanSummaryFromZones(next, current))
+            return next
+          })
           setScanStatus({ active: false, progress: `Complete — ${r.data.result.length} new zones found`, jobId })
           setTimeout(() => setScanStatus({ active: false, progress: '', jobId: null }), 5000)
         } else if (r.data.status === 'error') {
@@ -1084,16 +1148,16 @@ export default function App() {
         <div className="mt-3 space-y-1.5">
           {[
             'Connecting to Google Earth Engine...',
-            'Fetching 2019 satellite imagery...',
-            'Fetching 2023 satellite imagery...',
+            'Fetching 2024 satellite imagery...',
+            'Fetching 2025 satellite imagery...',
             'Running NDBI change detection...',
             'Downloading results from GEE...',
             'Extracting flagged zones...',
           ].map((step, i) => {
             const steps = [
               'Connecting',
-              'Fetching 2019',
-              'Fetching 2023',
+              'Fetching 2024',
+              'Fetching 2025',
               'Running NDBI',
               'Downloading',
               'Extracting',
@@ -1192,25 +1256,7 @@ export default function App() {
               north: maxLat
             }
             window.dispatchEvent(new CustomEvent('bbox-drawn', { detail: bboxDetail }))
-            // POST bbox to backend to start processing
-            axios.post('http://localhost:8000/process_bbox', bboxDetail).then(res => {
-              const jobId = res.data.job_id
-              const poll = setInterval(() => {
-                axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
-                  if (r.data.status === 'done' && r.data.result) {
-                    clearInterval(poll)
-                    setZones(r.data.result)
-                    axios.get('http://localhost:8000/zones/summary').then(s => setSummary(s.data)).catch(() => {})
-                    onDraw(r.data.result)
-                  } else if (r.data.status === 'error') {
-                    clearInterval(poll)
-                    alert('Processing failed: ' + (r.data.error || 'unknown'))
-                  }
-                }).catch(() => {})
-              }, 5000)
-            }).catch(err => {
-              alert('Failed to start processing: ' + err)
-            })
+            onDraw(geojson)
             return
           }
         }

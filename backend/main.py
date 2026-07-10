@@ -25,8 +25,8 @@ app.mount(
     name="images"
 )
 
-# Load pre-computed Vasai Virar data
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'flagged_zones.json')
+LIVE_ZONES_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'live_zones.json')
 
 VISION_DEFAULTS = {
     "construction_detected": False,
@@ -72,7 +72,7 @@ def normalize_zone(zone):
 
 def find_zone(zone_id: str):
     target = str(zone_id)
-    for zone in flagged_zones:
+    for zone in get_combined_zones():
         if str(zone.get('id')) == target:
             return zone
     return None
@@ -80,6 +80,9 @@ def find_zone(zone_id: str):
 
 def find_live_zone(zone_id: str):
     target = str(zone_id)
+    for zone in persisted_live_zones:
+        if str(zone.get('id')) == target:
+            return zone, {"status": "done", "result": persisted_live_zones}
     for job in JOBS.values():
         result = job.get('result')
         if isinstance(result, list):
@@ -133,6 +136,34 @@ def load_generate_report_module():
 with open(DATA_PATH, encoding='utf-8') as f:
     flagged_zones = [normalize_zone(zone) for zone in json.load(f)]
 
+
+def load_persisted_live_zones():
+    if not os.path.exists(LIVE_ZONES_PATH):
+        return []
+    try:
+        with open(LIVE_ZONES_PATH, encoding='utf-8') as f:
+            data = json.load(f)
+        return [normalize_zone(zone) for zone in data]
+    except Exception as exc:
+        print(f"Failed to load persisted live zones: {exc}")
+        return []
+
+
+persisted_live_zones = load_persisted_live_zones()
+
+
+def get_combined_zones():
+    return flagged_zones + persisted_live_zones
+
+
+def save_live_zones(new_zones):
+    existing = {str(zone.get('id')): zone for zone in persisted_live_zones}
+    for zone in new_zones:
+        existing[str(zone.get('id'))] = normalize_zone(zone)
+    persisted_live_zones[:] = list(existing.values())
+    with open(LIVE_ZONES_PATH, 'w', encoding='utf-8') as f:
+        json.dump(persisted_live_zones, f, ensure_ascii=False, indent=2)
+
 # In-memory job store
 JOBS = {}
 
@@ -140,30 +171,33 @@ JOBS = {}
 
 @app.get("/")
 def root():
-    return {"status": "AutoSentinel API running", "total_zones": len(flagged_zones)}
+    return {"status": "AutoSentinel API running", "total_zones": len(get_combined_zones())}
 
 @app.get("/zones")
 def get_all_zones():
-    return {"zones": flagged_zones, "total": len(flagged_zones)}
+    zones = get_combined_zones()
+    return {"zones": zones, "total": len(zones)}
 
 @app.get("/zones/summary")
 def get_summary():
     severity_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
     microsoft_confirmed = 0
-    for zone in flagged_zones:
+    zones = get_combined_zones()
+    for zone in zones:
         severity_counts[zone['severity']] += 1
         if zone.get('microsoft_confirmed'):
             microsoft_confirmed += 1
+    latest_live = persisted_live_zones[-1] if persisted_live_zones else None
     return {
-        "total": len(flagged_zones),
+        "total": len(zones),
         "severity_breakdown": severity_counts,
         "microsoft_confirmed": microsoft_confirmed,
-        "area": "Vasai Virar, Maharashtra",
-        "period": "2019 vs 2023"
+        "area": latest_live.get("area_label") if latest_live else "Vasai Virar, Maharashtra",
+        "period": latest_live.get("period_label") if latest_live else "2019 vs 2023"
     }
 @app.get("/zones/severity/{level}")
 def get_by_severity(level: str):
-    filtered = [z for z in flagged_zones if z['severity'] == level.upper()]
+    filtered = [z for z in get_combined_zones() if z['severity'] == level.upper()]
     return {"zones": filtered, "total": len(filtered)}
 
 @app.get("/zones/{zone_id}/images")
@@ -184,30 +218,24 @@ def get_zone_report(zone_id: str):  # changed int to str
     base = os.path.join(os.path.dirname(__file__), '..')
     report_path = os.path.join(base, 'data', f'report_zone_{zone_id}.pdf')
 
-    if not os.path.exists(report_path):
+    zone = find_zone(zone_id)
+    if zone is None:
         live_zone, live_job = find_live_zone(zone_id)
-        if live_zone is not None:
-            if live_job.get('status') != 'done':
-                return {"error": "Live scan report unavailable until scan completes"}
-            module = load_generate_report_module()
-            before_path = os.path.join(base, 'data', 'images', f'zone_{zone_id}_before.png')
-            after_path = os.path.join(base, 'data', 'images', f'zone_{zone_id}_after.png')
-            module.generate_report(
-                live_zone,
-                report_path,
-                before_path=before_path,
-                after_path=after_path,
-            )
-        else:
-            # Only generate reports for pre-computed integer zones
-            try:
-                int_id = int(zone_id)
-                script_path = os.path.join(
-                    os.path.dirname(__file__), '..', 'notebooks', 'generate_report.py'
-                )
-                subprocess.run([sys.executable, script_path, str(int_id)], check=True)
-            except ValueError:
-                return {"error": "Report generation for live scan zones coming soon"}
+        if live_zone is None:
+            return {"error": "Zone not found"}
+        if live_job.get('status') != 'done':
+            return {"error": "Live scan report unavailable until scan completes"}
+        zone = live_zone
+
+    module = load_generate_report_module()
+    before_path = os.path.join(base, 'data', 'images', f'zone_{zone_id}_before.png')
+    after_path = os.path.join(base, 'data', 'images', f'zone_{zone_id}_after.png')
+    module.generate_report(
+        zone,
+        report_path,
+        before_path=before_path,
+        after_path=after_path,
+    )
 
     if os.path.exists(report_path):
         return FileResponse(
@@ -322,18 +350,18 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         print(f"[JOB {job_id}] BBox: W={west} S={south} E={east} N={north}")
         region = ee.Geometry.Rectangle([west, south, east, north])
 
-        JOBS[job_id]["progress"] = "Fetching 2019 satellite imagery..."
+        JOBS[job_id]["progress"] = "Fetching 2024 satellite imagery..."
         before = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2019-01-01', '2019-12-31')
+            .filterDate('2024-01-01', '2024-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .median()
             .clip(region))
 
-        JOBS[job_id]["progress"] = "Fetching 2023 satellite imagery..."
+        JOBS[job_id]["progress"] = "Fetching 2025 satellite imagery..."
         after = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2023-01-01', '2023-12-31')
+            .filterDate('2025-01-01', '2025-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .median()
             .clip(region))
@@ -400,6 +428,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
 
         # Build initial zones list
         zones = []
+        area_label = f"Custom scanned area ({south:.4f}, {west:.4f}) to ({north:.4f}, {east:.4f})"
         for idx, r in enumerate(results):
             centroid = r['geometry'].centroid
             sev = get_severity(r['area_sqm'])
@@ -419,8 +448,10 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                 'legal_explanation': '',
                 'microsoft_confirmed': False,
                 'construction_detected': True,
-                'vision_confidence': 0.5,
+                'vision_confidence': 0.0,
                 'objects_found': [],
+                'area_label': area_label,
+                'period_label': '2024 vs 2025',
             })
 
         base_dir = os.path.join(os.path.dirname(__file__), '..')
@@ -531,7 +562,9 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                         'microsoft_confirmed': bool(row.get('microsoft_confirmed', False)),
                         'construction_detected': bool(row.get('construction_detected', False)),
                         'vision_confidence': float(row.get('vision_confidence', 0.0)),
-                        'objects_found': row.get('objects_found', []) if isinstance(row.get('objects_found', []), list) else []
+                        'objects_found': row.get('objects_found', []) if isinstance(row.get('objects_found', []), list) else [],
+                        'area_label': area_label,
+                        'period_label': '2024 vs 2025',
                     })
             finally:
                 try:
@@ -621,14 +654,16 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                     print(f"[JOB {job_id}] Joined rows: {len(ms_joined)}")
                     print(f"[JOB {job_id}] Violation types: {ms_joined['violation_type'].value_counts().to_dict()}")
                     for i, zone in enumerate(zones):
-                        if i < len(joined):
-                           row = joined.iloc[i]
-                           vtype = row.get('violation_type')
-                           boost = row.get('score_boost', 0)
-                           print(f"[JOB {job_id}] Zone {i}: vtype={vtype} boost={boost} notna={pd.notna(vtype)}")
-                        if pd.notna(vtype):
-                           zone['violation_type'] = str(vtype)
-                           zone['risk_score'] = min(100, round(zone['risk_score'] + float(boost), 1))
+                        if i >= len(ms_joined):
+                            continue
+
+                        row = ms_joined.iloc[i]
+                        ms_match = pd.notna(row.get('index_right'))
+                        print(f"[JOB {job_id}] Zone {i}: microsoft_match={ms_match}")
+
+                        if ms_match:
+                            zone['microsoft_confirmed'] = True
+                            confirmed_count += 1
 
                     print(f"[JOB {job_id}] Zones after boost: {[z['risk_score'] for z in zones[:3]]}")
                     print(f"[JOB {job_id}] Microsoft confirmed: {confirmed_count}/{len(zones)}")
@@ -642,6 +677,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         JOBS[job_id]["status"] = "done"
         JOBS[job_id]["progress"] = f"Scan complete — {len(zones)} zones found"
         JOBS[job_id]["result"] = zones
+        save_live_zones(zones)
         print(f"[JOB {job_id}] Complete — {len(zones)} zones")
 
     except Exception as e:
@@ -658,11 +694,14 @@ async def get_live_images(zone_id: str, lat: float, lon: float, background_tasks
     """Fetch before/after satellite thumbnail for any coordinate on demand"""
     
     # Check if already cached
-    safe_id = str(zone_id).replace('/', '_')
+    safe_id = ''.join(ch if ch.isalnum() or ch in ('-', '_') else '_' for ch in str(zone_id))
     before_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'images', f'zone_{safe_id}_before.png')
     after_path  = os.path.join(os.path.dirname(__file__), '..', 'data', 'images', f'zone_{safe_id}_after.png')
     
-    if os.path.exists(before_path) and os.path.exists(after_path):
+    def valid_cached_image(path):
+        return os.path.exists(path) and os.path.getsize(path) > 1024
+
+    if valid_cached_image(before_path) and valid_cached_image(after_path):
         return {
             "has_images": True,
             "before_url": f"http://localhost:8000/images/zone_{safe_id}_before.png",
@@ -683,15 +722,17 @@ async def get_live_images(zone_id: str, lat: float, lon: float, background_tasks
 
         before = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2019-01-01', '2019-12-31')
+            .filterDate('2024-01-01', '2024-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
-            .median())
+            .median()
+            .clip(region))
 
         after = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(region)
-            .filterDate('2023-01-01', '2023-12-31')
+            .filterDate('2025-01-01', '2025-12-31')
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
-            .median())
+            .median()
+            .clip(region))
 
         viz = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 3000, 'dimensions': 512, 'region': region}
 
@@ -701,6 +742,9 @@ async def get_live_images(zone_id: str, lat: float, lon: float, background_tasks
         # Download and cache
         for url, path in [(before_url, before_path), (after_url, after_path)]:
             r = req.get(url, timeout=60)
+            content_type = r.headers.get('content-type', '')
+            if r.status_code != 200 or 'image' not in content_type.lower() or len(r.content) < 1024:
+                raise RuntimeError(f"Satellite thumbnail request failed for {safe_id}")
             with open(path, 'wb') as f:
                 f.write(r.content)
 

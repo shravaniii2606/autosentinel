@@ -39,7 +39,12 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     score = zone.get('risk_score', 0)
     area = zone.get('area_sqm', 0)
     violation = zone.get('violation_type', 'UNVERIFIED_ZONE')
-    action_text = zone.get('action', 'Review flagged zone and determine next steps.')
+    area_label = zone.get('area_label', 'Selected area')
+    period_label = zone.get('period_label', '2019-2023')
+    if ' vs ' in period_label:
+        before_year, after_year = period_label.split(' vs ')
+    else:
+        before_year, after_year = '2019', '2023'
 
     title_style = ParagraphStyle('title', fontSize=22, fontName='Helvetica-Bold',
         textColor=colors.HexColor('#CC0000'), spaceAfter=4)
@@ -50,13 +55,13 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     story.append(Paragraph('Unauthorized Construction Detection Report', sub_style))
     story.append(Paragraph(
         f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M IST')}  |  "
-        'Area: Vasai Virar, Maharashtra  |  Analysis Period: 2019-2023',
+        f'Area: {area_label}  |  Analysis Period: {before_year}-{after_year}',
         ParagraphStyle('meta', fontSize=8, textColor=colors.HexColor('#888888'))))
     story.append(HRFlowable(width='100%', thickness=1, color=colors.HexColor('#DDDDDD'), spaceAfter=12))
 
     sev_style = ParagraphStyle('sev', fontSize=16, fontName='Helvetica-Bold',
         textColor=colors.HexColor(severity_hex.get(sev, '#006600')), spaceAfter=4)
-    story.append(Paragraph(f'⚠ Severity: {sev}  |  Risk Score: {score}/100', sev_style))
+    story.append(Paragraph(f'Severity: {sev}  |  Risk Score: {score}/100', sev_style))
     story.append(Spacer(1, 0.3 * cm))
 
     story.append(Paragraph('Zone Details', ParagraphStyle('h2', fontSize=13,
@@ -70,7 +75,6 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
         ['Severity Level', sev],
         ['Risk Score', f"{score} / 100"],
         ['Violation Type', violation.replace('_', ' ')],
-        ['Bhuvan Land Type', zone.get('bhuvan_land_type', 'Unverified').replace('_', ' ')],
         ['OSM Overlays', ', '.join(zone.get('osm_flags', [])) or 'None'],
         ['Legal Flags', ', '.join(zone.get('legal_flags', [])) or 'None'],
         ['Risk Boost', f"{zone.get('risk_boost_total', 0):.1f}"],
@@ -100,7 +104,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
             f"This zone received a CRITICAL score of {score}/100 because the detected construction "
             f"covers {area / 10000:.1f} hectares - exceeding the 5-hectare threshold that indicates "
             'large-scale unauthorized development. Structures of this size cannot be accidental '
-            'extensions and require immediate enforcement action.'
+            'extensions and should be reviewed against local approvals.'
         )
     elif area > 10000:
         score_reason = (
@@ -112,19 +116,19 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
         score_reason = (
             f"This zone received a MEDIUM score of {score}/100 because the detected construction "
             f"covers {area / 10000:.2f} hectares - between 0.2 and 1 hectare. This is a moderate "
-            'unauthorized structure that warrants scheduled inspection.'
+            'satellite-detected change requiring human verification.'
         )
     else:
         score_reason = (
             f"This zone received a LOW score of {score}/100 because the detected construction "
-            f"covers {area:.0f} sq metres - a small structure that should be logged for routine inspection."
+            f"covers {area:.0f} sq metres - a small satellite-detected built-up change."
         )
 
     violation_reason = {
         'FOREST_ENCROACHMENT': (
             'The construction location falls within an area classified as protected forest or woodland '
-            'by ISRO Bhuvan land use data. Construction on forest land without Forest Department '
-            'clearance is prohibited under the Forest Conservation Act, 1980.'
+            'in the available reference overlays. Construction on forest land without Forest Department '
+            'clearance may be prohibited under the Forest Conservation Act, 1980.'
         ),
         'AGRICULTURAL_LAND': (
             'The construction location falls on land classified as agricultural. Converting agricultural '
@@ -147,7 +151,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
         ['Construction Area', f"{area / 10000:.2f} ha", 'Primary driver - larger = higher score'],
         ['Land Classification', violation.replace('_', ' '), 'Determines violation severity'],
         ['NDBI Change Magnitude', '> 0.15 threshold', 'Confirms built-up area increase'],
-        ['Time Period', '2019 → 2023', '4-year change window'],
+        ['Time Period', f'{before_year} → {after_year}', 'Change detection window'],
         ['Final Score', f"{score}/100", f"Severity: {sev}"],
     ]
 
@@ -170,13 +174,6 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     story.append(Paragraph(f'Land Classification Note: {violation_reason}',
         ParagraphStyle('body2', fontSize=9, textColor=colors.HexColor('#555555'),
             leading=14, spaceAfter=8)))
-    if zone.get('legal_explanation'):
-        story.append(Paragraph(
-            f"Legal Analysis: {zone.get('legal_explanation')}",
-            ParagraphStyle('body2', fontSize=9, textColor=colors.HexColor('#555555'),
-                leading=14, spaceAfter=8)
-        ))
-
     story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#DDDDDD'), spaceAfter=8))
     story.append(Paragraph('Satellite Evidence',
         ParagraphStyle('h2', fontSize=13, fontName='Helvetica-Bold',
@@ -184,7 +181,7 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
 
     if os.path.exists(before_path) and os.path.exists(after_path):
         story.append(Paragraph(
-            'The images below show the flagged location in 2019 (before) and 2023 (after). '
+            f'The images below show the flagged location in {before_year} (before) and {after_year} (after). '
             'Visible change in land cover - new grey/brown built-up area replacing green or open land - '
             'confirms the satellite detection.',
             ParagraphStyle('body', fontSize=9, textColor=colors.HexColor('#555555'),
@@ -197,8 +194,8 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
 
         img_table = Table(
             [[img_before, img_after],
-             [Paragraph('2019 - Before Construction', label_style),
-              Paragraph('2023 - After Construction', label_style)]],
+             [Paragraph(f'{before_year} - Before Construction', label_style),
+              Paragraph(f'{after_year} - After Construction', label_style)]],
             colWidths=[8.5 * cm, 8.5 * cm]
         )
         img_table.setStyle(TableStyle([
@@ -213,44 +210,6 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
             'Images are pre-generated for Critical severity zones only. '
             'Use the AutoSentinel dashboard to view live satellite thumbnails for this location.',
             ParagraphStyle('body', fontSize=9, textColor=colors.HexColor('#888888'), leading=14)))
-
-    story.append(Spacer(1, 0.5 * cm))
-
-    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#DDDDDD'), spaceAfter=8))
-    story.append(Paragraph('Recommended Action',
-        ParagraphStyle('h2', fontSize=13, fontName='Helvetica-Bold',
-            spaceAfter=6, textColor=colors.HexColor('#222222'))))
-    story.append(Paragraph(action_text,
-        ParagraphStyle('action', fontSize=10, fontName='Helvetica-Bold',
-            textColor=colors.HexColor(severity_hex.get(sev, '#006600')), spaceAfter=6)))
-
-    action_detail = {
-        'CRITICAL': (
-            '1. Dispatch ground inspection team immediately to verify satellite findings.\n'
-            '2. Cross-check location against RERA permit database for registered projects.\n'
-            '3. If no valid permit found, issue Stop Work Notice under MRTP Act Section 52.\n'
-            '4. Initiate demolition proceedings if construction exceeds permissible limits.\n'
-            '5. File case with District Collector if land falls under Forest/Government category.'
-        ),
-        'HIGH': (
-            '1. Schedule ground inspection within 48 hours.\n'
-            '2. Verify building permit status with local municipal authority.\n'
-            '3. Issue notice to owner if construction is found to be unauthorized.\n'
-            '4. Escalate to CRITICAL if structure is found on protected land.'
-        ),
-        'MEDIUM': (
-            '1. Add to inspection queue for next available field officer visit.\n'
-            '2. Check online permit records before physical inspection.\n'
-            '3. Issue advisory notice if minor violations found.'
-        ),
-        'LOW': (
-            '1. Log in municipal records for routine inspection cycle.\n'
-            '2. No immediate action required unless escalated by complaint.'
-        ),
-    }.get(sev, action_text)
-
-    story.append(Paragraph(action_detail.replace('\n', '<br/>'),
-        ParagraphStyle('detail', fontSize=9, textColor=colors.HexColor('#333333'), leading=16)))
 
     story.append(Spacer(1, 0.5 * cm))
 
