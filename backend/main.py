@@ -67,7 +67,7 @@ def normalize_zone(zone):
     for key in ["construction_detected", "crane_present", "building_present", "container_present"]:
         normalized[key] = bool(normalized.get(key, False))
 
-    return normalized
+    return _sanitize_obj(normalized)
 
 
 def find_zone(zone_id: str):
@@ -162,7 +162,7 @@ def save_live_zones(new_zones):
         existing[str(zone.get('id'))] = normalize_zone(zone)
     persisted_live_zones[:] = list(existing.values())
     with open(LIVE_ZONES_PATH, 'w', encoding='utf-8') as f:
-        json.dump(persisted_live_zones, f, ensure_ascii=False, indent=2)
+        json.dump(_sanitize_obj(persisted_live_zones), f, ensure_ascii=False, indent=2)
 
 # In-memory job store
 JOBS = {}
@@ -555,8 +555,8 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                         'action': row['action'],
                         'violation_type': row.get('violation_type', 'UNVERIFIED_ZONE'),
                         'bhuvan_land_type': row.get('bhuvan_land_type', 'unverified'),
-                        'osm_flags': row.get('osm_flags', []),
-                        'legal_flags': row.get('legal_flags', []),
+                        'osm_flags': _sanitize_obj(row.get('osm_flags', [])) or [],
+                        'legal_flags': _sanitize_obj(row.get('legal_flags', [])) or [],
                         'risk_boost_total': float(row.get('risk_boost_total', 0)),
                         'legal_explanation': row.get('legal_explanation', ''),
                         'microsoft_confirmed': bool(row.get('microsoft_confirmed', False)),
@@ -673,6 +673,8 @@ def run_gee_pipeline(job_id: str, bbox: dict):
 
         # ── Final sort and complete ──────────────────────────────────
         zones.sort(key=lambda x: x['risk_score'], reverse=True)
+
+        zones = [normalize_zone(zone) for zone in zones]
 
         JOBS[job_id]["status"] = "done"
         JOBS[job_id]["progress"] = f"Scan complete — {len(zones)} zones found"

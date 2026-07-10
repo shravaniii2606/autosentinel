@@ -1,0 +1,126 @@
+[
+  {
+    "id": "live_df3b1f9a_0",
+    "lat": 19.356697,
+    "lon": 72.92246,
+    "area_sqm": 2600.0,
+    "severity": "MEDIUM",
+    "risk_score": 78.0,
+    "action": "Schedule inspection",
+    "violation_type": "RAILWAY_BUFFER_VIOLATION",
+    "bhuvan_land_type": "unverified",
+    "osm_flags": [
+      "RAILWAY_BUFFER_VIOLATION",
+      "RIVER_BUFFER_VIOLATION",
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "legal_flags": [
+      "RAILWAY_BUFFER_VIOLATION",
+      "RIVER_BUFFER_VIOLATION",
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "risk_boost_total": 35.0,
+    "legal_explanation": "OSM infrastructure overlays detected: RAILWAY BUFFER VIOLATION, RIVER BUFFER VIOLATION, INDUSTRIAL ZONE ACTIVITY. This construction appears to violate: RAILWAY BUFFER VIOLATION, RIVER BUFFER VIOLATION, INDUSTRIAL ZONE ACTIVITY. Risk reason: Railway boost +15; River boost +15; Industrial boost +5. Final risk: 78.0/100.",
+    "microsoft_confirmed": false,
+    "construction_detected": true,
+    "vision_confidence": 0.0,
+    "objects_found": [],
+    "area_label": "Custom scanned area (19.3456, 72.9115) to (19.3634, 72.9364)",
+    "period_label": "2024 vs 2025",
+    "crane_present": false,
+    "building_present": false,
+    "container_present": false
+  },
+  {
+    "id": "live_df3b1f9a_1",
+    "lat": 19.354749,
+    "lon": 72.928315,
+    "area_sqm": 1900.0,
+    "severity": "LOW",
+    "risk_score": 54.3,
+    "action": "Log for routine inspection",
+    "violation_type": "RAILWAY_BUFFER_VIOLATION",
+    "bhuvan_land_type": "unverified",
+    "osm_flags": [
+      "RAILWAY_BUFFER_VIOLATION",
+      "RIVER_BUFFER_VIOLATION",
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "legal_flags": [
+      "RAILWAY_BUFFER_VIOLATION",
+      "RIVER_BUFFER_VIOLATION",
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "risk_boost_total": 35.0,
+    "legal_explanation": "OSM infrastructure overlays detected: RAILWAY BUFFER VIOLATION, RIVER BUFFER VIOLATION, INDUSTRIAL ZONE ACTIVITY. This construction appears to violate: RAILWAY BUFFER VIOLATION, RIVER BUFFER VIOLATION, INDUSTRIAL ZONE ACTIVITY. Risk reason: Railway boost +15; River boost +15; Industrial boost +5. Final risk: 54.3/100.",
+    "microsoft_confirmed": false,
+    "construction_detected": true,
+    "vision_confidence": 0.0,
+    "objects_found": [],
+    "area_label": "Custom scanned area (19.3456, 72.9115) to (19.3634, 72.9364)",
+    "period_label": "2024 vs 2025",
+    "crane_present": false,
+    "building_present": false,
+    "container_present": false
+  },
+  {
+    "id": "live_df3b1f9a_2",
+    "lat": 19.352167,
+    "lon": 72.920908,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 45.7,
+    "action": "Log for routine inspection",
+    "violation_type": "RAILWAY_BUFFER_VIOLATION",
+    "bhuvan_land_type": "unverified",
+    "osm_flags": [
+      "RAILWAY_BUFFER_VIOLATION",
+      "RIVER_BUFFER_VIOLATION",
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "legal_flags": [
+      "RAILWAY_BUFFER_VIOLATION",
+      "RIVER_BUFFER_VIOLATION",
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "risk_boost_total": 35.0,
+    "legal_explanation": "OSM infrastructure overlays detected: RAILWAY BUFFER VIOLATION, RIVER BUFFER VIOLATION, INDUSTRIAL ZONE ACTIVITY. This construction appears to violate: RAILWAY BUFFER VIOLATION, RIVER BUFFER VIOLATION, INDUSTRIAL ZONE ACTIVITY. Risk reason: Railway boost +15; River boost +15; Industrial boost +5. Final risk: 45.7/100.",
+    "microsoft_confirmed": false,
+    "construction_detected": true,
+    "vision_confidence": 0.0,
+    "objects_found": [],
+    "area_label": "Custom scanned area (19.3456, 72.9115) to (19.3634, 72.9364)",
+    "period_label": "2024 vs 2025",
+    "crane_present": false,
+    "building_present": false,
+    "container_present": false
+  },
+  {
+    "id": "live_f4710132_0",
+    "lat": 19.284344,
+    "lon": 72.881831,
+    "area_sqm": 600.0,
+    "severity": "LOW",
+    "risk_score": 15.7,
+    "action": "Log for routine inspection",
+    "violation_type": "INDUSTRIAL_ZONE_ACTIVITY",
+    "bhuvan_land_type": "unverified",
+    "osm_flags": [
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "legal_flags": [
+      "INDUSTRIAL_ZONE_ACTIVITY"
+    ],
+    "risk_boost_total": 5.0,
+    "legal_explanation": "OSM infrastructure overlays detected: INDUSTRIAL ZONE ACTIVITY. This construction appears to violate: INDUSTRIAL ZONE ACTIVITY. Risk reason: Industrial boost +5. Final risk: 15.7/100.",
+    "microsoft_confirmed": false,
+    "construction_detected": true,
+    "vision_confidence": 0.0,
+    "objects_found": [],
+    "area_label": "Custom scanned area (19.2826, 72.8771) to (19.2864, 72.8832)",
+    "period_label": "2024 vs 2025",
+    "crane_present": false,
+    "building_present": false,
+    "container_present": false
+  }
+]
