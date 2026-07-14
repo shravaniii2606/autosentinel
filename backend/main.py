@@ -464,7 +464,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
             subprocess.run([
                 sys.executable,
                 os.path.join(base_dir, 'notebooks', 'fetch_bhuvan_lulc.py'),
-                    "--source", os.path.join(base_dir, 'data', 'zoned_violations_enriched.geojson'),
+                "--source", os.path.join(base_dir, 'data', 'dahisar_landuse.geojson'),
                 '--output', bhuvan_path,
                 '--bbox', str(west), str(south), str(east), str(north)
                 
@@ -555,6 +555,9 @@ def run_gee_pipeline(job_id: str, bbox: dict):
                         'action': row['action'],
                         'violation_type': row.get('violation_type', 'UNVERIFIED_ZONE'),
                         'bhuvan_land_type': row.get('bhuvan_land_type', 'unverified'),
+                        'bhuvan_confidence': row.get('bhuvan_confidence', 'Low'),
+                        'bhuvan_overlap_percent': float(row.get('bhuvan_overlap_percent', 0)),
+                        'bhuvan_source': row.get('bhuvan_source', 'No land-use polygon intersected'),
                         'osm_flags': _sanitize_obj(row.get('osm_flags', [])) or [],
                         'legal_flags': _sanitize_obj(row.get('legal_flags', [])) or [],
                         'risk_boost_total': float(row.get('risk_boost_total', 0)),
