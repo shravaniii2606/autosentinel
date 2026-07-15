@@ -2,8 +2,16 @@ import ee
 import os
 import requests
 import json
+import sys
+from pathlib import Path
 
-ee.Initialize(project='ee-autosentinel')
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.gee_auth import init_earth_engine
+
+init_earth_engine()
 
 with open('data/flagged_zones.json') as f:
     zones = json.load(f)

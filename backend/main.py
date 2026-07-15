@@ -10,6 +10,11 @@ import uuid
 import threading
 import importlib.util
 import numpy as np
+try:
+    from backend.gee_auth import init_earth_engine
+except ImportError:
+    from gee_auth import init_earth_engine
+
 app = FastAPI()
 
 app.add_middleware(
@@ -340,7 +345,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         import pandas as pd
 
         JOBS[job_id]["progress"] = "Connecting to Google Earth Engine..."
-        ee.Initialize(project='ee-autosentinel')
+        init_earth_engine()
 
         west = bbox.get('minx') or bbox.get('west')
         south = bbox.get('miny') or bbox.get('south')
@@ -718,7 +723,7 @@ async def get_live_images(zone_id: str, lat: float, lon: float, background_tasks
         import ee
         import requests as req
 
-        ee.Initialize(project='ee-autosentinel')
+        init_earth_engine()
 
         region = ee.Geometry.Rectangle([
             lon - 0.008, lat - 0.008,

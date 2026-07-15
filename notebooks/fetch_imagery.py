@@ -4,11 +4,18 @@ import numpy as np
 import argparse
 import sys
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.gee_auth import init_earth_engine
 
 
 def main(minx, miny, maxx, maxy, out_tif):
     # Initialize
-    ee.Initialize(project='ee-autosentinel')
+    init_earth_engine()
     print("GEE Connected")
 
     region = ee.Geometry.Rectangle([minx, miny, maxx, maxy])
