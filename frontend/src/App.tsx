@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, WMSTileLayer, CircleMarker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import axios from 'axios'
 import 'leaflet/dist/leaflet.css'
@@ -18,6 +18,9 @@ interface Zone {
   action: string
   violation_type: string
   bhuvan_land_type?: string
+  bhuvan_confidence?: string
+  bhuvan_overlap_percent?: number
+  bhuvan_source?: string
   osm_flags?: string[]
   legal_flags?: string[]
   risk_boost_total?: number
@@ -843,6 +846,24 @@ export default function App() {
               </div>
 
               <div className="mt-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs space-y-2">
+                <div className="border-b border-slate-200 pb-2">
+                  <p className="font-semibold text-slate-700">ISRO Bhuvan land-use verification</p>
+                </div>
+                <div className="flex justify-between gap-3 text-slate-500">
+                  <span>Classification</span>
+                  <span className="font-semibold text-slate-900 text-right">
+                    {selectedZone.bhuvan_land_type || 'Not assessed'}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-slate-500">
+                  <span>Overlap / confidence</span>
+                  <span className="font-semibold text-slate-900 text-right">
+                    {typeof selectedZone.bhuvan_overlap_percent === 'number'
+                      ? `${selectedZone.bhuvan_overlap_percent.toFixed(1)}% / ${selectedZone.bhuvan_confidence || 'Unknown'}`
+                      : 'Not available'}
+                  </span>
+                </div>
+                
                 <div className="flex justify-between text-slate-500">
                   <span>OSM overlays</span>
                   <span className="font-semibold text-slate-900">
@@ -909,12 +930,13 @@ export default function App() {
   attribution="© Google"
   maxZoom={21}
 />
-          <TileLayer
+          <WMSTileLayer
             url="https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms"
             layers="lulc50k"
             format="image/png"
             transparent={true}
             opacity={0.5}
+            version="1.1.1"
             attribution="ISRO Bhuvan LULC"
           />
           {filtered.map(zone => (

@@ -48,6 +48,9 @@ def default_vision_fields():
 def default_legal_fields():
     return {
         'bhuvan_land_type': 'unverified',
+        'bhuvan_confidence': 'Unknown',
+        'bhuvan_overlap_percent': 0.0,
+        'bhuvan_source': 'No land-use layer available for this zone',
         'osm_flags': [],
         'legal_flags': [],
         'risk_boost_total': 0.0,

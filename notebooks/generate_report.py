@@ -4,6 +4,7 @@ import sys
 import json
 import os
 from datetime import datetime
+from xml.sax.saxutils import escape
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -39,6 +40,10 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     score = zone.get('risk_score', 0)
     area = zone.get('area_sqm', 0)
     violation = zone.get('violation_type', 'UNVERIFIED_ZONE')
+    bhuvan_land_type = zone.get('bhuvan_land_type') or 'Not assessed'
+    bhuvan_confidence = zone.get('bhuvan_confidence') or 'Unknown'
+    bhuvan_overlap = float(zone.get('bhuvan_overlap_percent') or 0)
+    bhuvan_source = zone.get('bhuvan_source') or 'No land-use layer available for this zone'
     area_label = zone.get('area_label', 'Selected area')
     period_label = zone.get('period_label', '2019-2023')
     if ' vs ' in period_label:
@@ -75,6 +80,9 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
         ['Severity Level', sev],
         ['Risk Score', f"{score} / 100"],
         ['Violation Type', violation.replace('_', ' ')],
+        ['Bhuvan Land Classification', str(bhuvan_land_type)],
+        ['Bhuvan Overlap / Confidence', f"{bhuvan_overlap:.1f}% / {bhuvan_confidence}"],
+        ['Bhuvan Data Source', str(bhuvan_source)],
         ['OSM Overlays', ', '.join(zone.get('osm_flags', [])) or 'None'],
         ['Legal Flags', ', '.join(zone.get('legal_flags', [])) or 'None'],
         ['Risk Boost', f"{zone.get('risk_boost_total', 0):.1f}"],
@@ -93,6 +101,15 @@ def generate_report(zone, output_path=None, before_path=None, after_path=None):
     ]))
     story.append(table)
     story.append(Spacer(1, 0.5 * cm))
+
+    story.append(Paragraph('Bhuvan Land-use Verification', ParagraphStyle('h2_bhuvan', fontSize=13,
+        fontName='Helvetica-Bold', spaceAfter=6, textColor=colors.HexColor('#222222'))))
+    story.append(Paragraph(
+        f"The zone was checked against the available ISRO Bhuvan-compatible land-use layer. "
+        f"Dominant classification: <b>{escape(str(bhuvan_land_type))}</b>; polygon overlap: <b>{bhuvan_overlap:.1f}%</b>; "
+        f"confidence: <b>{escape(str(bhuvan_confidence))}</b>. Source: {escape(str(bhuvan_source))}.",
+        ParagraphStyle('bhuvan_note', fontSize=9, textColor=colors.HexColor('#555555'),
+            leading=14, spaceAfter=10)))
 
     story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#DDDDDD'), spaceAfter=8))
     story.append(Paragraph('How the Risk Score Was Calculated',
