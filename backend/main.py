@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +17,11 @@ try:
     from backend.gee_auth import init_earth_engine
 except ImportError:
     from gee_auth import init_earth_engine
+
+try:
+    from backend.supabase_client import upsert_zones, fetch_zones
+except ImportError:
+    from supabase_client import upsert_zones, fetch_zones
 
 app = FastAPI()
 
@@ -169,8 +177,17 @@ def save_live_zones(new_zones):
     for zone in new_zones:
         existing[str(zone.get('id'))] = normalize_zone(zone)
     persisted_live_zones[:] = list(existing.values())
+
+    # Local JSON stays as a fast local cache / fallback if Supabase is unreachable
     with open(LIVE_ZONES_PATH, 'w', encoding='utf-8') as f:
         json.dump(_sanitize_obj(persisted_live_zones), f, ensure_ascii=False, indent=2)
+
+    try:
+        written = upsert_zones(new_zones, source="live")
+        print(f"[Supabase] Upserted {written} live zones")
+    except Exception as exc:
+        # Never let Supabase being unreachable break a scan the user is waiting on
+        print(f"[Supabase] Upsert failed, continuing with local JSON only: {exc}")
 
 # In-memory job store
 JOBS = {}
@@ -282,6 +299,27 @@ async def scan_area(request: Request, background_tasks: BackgroundTasks):
 @app.get("/scan/{job_id}")
 def get_scan_job(job_id: str):
     return get_job(job_id)
+
+# ─── Supabase admin endpoints ───────────────────────────────────────────────
+
+@app.post("/admin/sync-flagged-to-supabase")
+def sync_flagged_zones():
+    """One-time / repeatable: push the precomputed flagged_zones.json into Supabase."""
+    try:
+        written = upsert_zones(flagged_zones, source="flagged")
+        return {"status": "ok", "written": written}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@app.get("/admin/zones-from-supabase")
+def zones_from_supabase(source: str = None):
+    """Read zones back from Supabase directly (bypasses local JSON entirely)."""
+    try:
+        zones = fetch_zones(source=source)
+        return {"zones": zones, "total": len(zones)}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 @app.post("/zones/query")
 async def query_zones(request: Request, background_tasks: BackgroundTasks):
