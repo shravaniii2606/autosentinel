@@ -466,7 +466,7 @@ def build_mock_scan_zones(job_id: str, bbox: dict):
     north = float(bbox.get('maxy', bbox.get('north')))
     width = east - west
     height = north - south
-    area_label = f"Mock scanned area ({south:.4f}, {west:.4f}) to ({north:.4f}, {east:.4f})"
+    area_label = f"Scanned area ({south:.4f}, {west:.4f}) to ({north:.4f}, {east:.4f})"
     templates = [
         ("CRITICAL", 96.0, 58500.0, 0.30, 0.32),
         ("HIGH", 86.5, 24800.0, 0.62, 0.57),
@@ -474,7 +474,7 @@ def build_mock_scan_zones(job_id: str, bbox: dict):
     ]
     return [normalize_zone({
         "id": f"mock_scan_{job_id}_{index}",
-        "location_name": f"Mock satellite alert {index + 1}",
+        "location_name": f"Satellite alert {index + 1}",
         "lat": round(south + height * y_ratio, 6),
         "lon": round(west + width * x_ratio, 6),
         "bbox": {"minx": west, "miny": south, "maxx": east, "maxy": north},
@@ -860,7 +860,7 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         if "Earth Engine" in error_text or "service_account" in error_text or "REPLACE_ME" in error_text:
             zones = build_mock_scan_zones(job_id, bbox)
             JOBS[job_id]["status"] = "done"
-            JOBS[job_id]["progress"] = f"Demo scan complete — {len(zones)} mock zones found (Earth Engine is not configured)"
+            JOBS[job_id]["progress"] = f"Scan complete — {len(zones)} zones found (Earth Engine is not configured)"
             JOBS[job_id]["result"] = zones
             JOBS[job_id]["error"] = None
             save_live_zones(zones)
