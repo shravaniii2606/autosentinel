@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, WMSTileLayer, CircleMarker, Popup, Circle, use
 import L from 'leaflet'
 import axios from 'axios'
 import AssistantPanel from './AssistantPanel'
+import LandingPage from './pages/LandingPage'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import 'leaflet-draw'
@@ -515,7 +516,7 @@ function LiveScanPanel({ onZonesReceived }: { onZonesReceived: (zones: Zone[]) =
     </div>
   )
 }
-export default function App() {
+function Dashboard() {
   const [drawMode, setDrawMode] = useState<'none'|'circle'|'pen'>('none')
   const [circleCenter, setCircleCenter] = useState<[number, number] | null>(null)
   const [circleRadius, setCircleRadius] = useState<number | null>(null) // meters
@@ -1433,3 +1434,7 @@ export default function App() {
     }, [lat, lng, map])
     return null
   }
+
+export default function App() {
+  return window.location.pathname === '/' ? <LandingPage /> : <Dashboard />
+}
