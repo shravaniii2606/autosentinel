@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 export default function AssistantPanel() {
   const [query, setQuery] = useState('')
@@ -13,7 +14,7 @@ export default function AssistantPanel() {
     setLoading(true)
     setAnswer('')
     try {
-      const res = await axios.post('http://localhost:8000/assistant/query', {
+      const res = await axios.post(`${API_BASE_URL}/assistant/query`, {
         text,
         officer_id: 'field_officer_1', // swap for real officer login id when auth exists
       })
@@ -24,13 +25,6 @@ export default function AssistantPanel() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const speak = (text: string) => {
-    if (!('speechSynthesis' in window)) return
-    const utterance = new SpeechSynthesisUtterance(text)
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(utterance)
   }
 
   const startListening = () => {

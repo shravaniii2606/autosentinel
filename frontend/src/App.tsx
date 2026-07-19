@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, WMSTileLayer, CircleMarker, Popup, Circle, use
 import L from 'leaflet'
 import axios from 'axios'
 import AssistantPanel from './AssistantPanel'
+import { API_BASE_URL } from './config'
 import LandingPage from './pages/LandingPage'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
@@ -386,14 +387,14 @@ function ZoneImages({ zoneId, lat, lon, boxes = [] }: { zoneId: number | string,
     setLoading(true)
     setImages(null)
 
-    axios.get(`http://localhost:8000/zones/${zoneId}/images`)
+    axios.get(`${API_BASE_URL}/zones/${zoneId}/images`)
       .then(res => {
         if (res.data?.has_images) {
           setImages(res.data)
           setLoading(false)
           return null
         }
-        return axios.get(`http://localhost:8000/zones/${zoneId}/live-images`, {
+        return axios.get(`${API_BASE_URL}/zones/${zoneId}/live-images`, {
           params: { lat, lon }
         })
       })
@@ -461,13 +462,13 @@ function LiveScanPanel({ onZonesReceived }: { onZonesReceived: (zones: Zone[]) =
     setProgress('Starting scan...')
 
     try {
-      const res = await axios.post('http://localhost:8000/process_bbox', drawnBounds)
+      const res = await axios.post(`${API_BASE_URL}/process_bbox`, drawnBounds)
       const id = res.data.job_id
       setJobId(id)
 
       // Poll every 5 seconds
       pollRef.current = setInterval(async () => {
-        const status = await axios.get(`http://localhost:8000/jobs/${id}`)
+        const status = await axios.get(`${API_BASE_URL}/jobs/${id}`)
         setProgress(status.data.progress)
 
         if (status.data.status === 'done' && status.data.result) {
@@ -555,8 +556,8 @@ function Dashboard() {
   }
 
   useEffect(() => {
-    axios.get('http://localhost:8000/zones').then(res => setZones(res.data.zones))
-    axios.get('http://localhost:8000/zones/summary').then(res => setSummary(res.data))
+    axios.get(`${API_BASE_URL}/zones`).then(res => setZones(res.data.zones))
+    axios.get(`${API_BASE_URL}/zones/summary`).then(res => setSummary(res.data))
   }, [])
 
   useEffect(() => {
@@ -920,7 +921,7 @@ function Dashboard() {
 
              {/* Download report button */}
 
-  <a href={`http://localhost:8000/zones/${selectedZone.id}/report`}
+  <a href={`${API_BASE_URL}/zones/${selectedZone.id}/report`}
   target="_blank"
   rel="noopener noreferrer"
   className="mt-3 w-full block text-center bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors"
@@ -1086,10 +1087,10 @@ function Dashboard() {
                 } catch {}
 
                 // reload original zones + summary from backend
-                axios.get('http://localhost:8000/zones')
+                axios.get(`${API_BASE_URL}/zones`)
                   .then(res => setZones(res.data.zones))
                   .catch(() => {})
-                axios.get('http://localhost:8000/zones/summary')
+                axios.get(`${API_BASE_URL}/zones/summary`)
                   .then(res => setSummary(res.data))
                   .catch(() => {})
               }}
@@ -1129,13 +1130,13 @@ function Dashboard() {
   if (!drawnGeoJSON) return
   setScanStatus({ active: true, progress: 'Initializing satellite scan...', jobId: null })
   
-  axios.post('http://localhost:8000/zones/query', drawnGeoJSON).then(res => {
+  axios.post(`${API_BASE_URL}/zones/query`, drawnGeoJSON).then(res => {
     const jobId = res.data.job_id
     if (!jobId) return
     setScanStatus({ active: true, progress: 'Connecting to Google Earth Engine...', jobId })
 
     const poll = setInterval(() => {
-      axios.get(`http://localhost:8000/jobs/${jobId}`).then(r => {
+      axios.get(`${API_BASE_URL}/jobs/${jobId}`).then(r => {
         setScanStatus({ active: true, progress: r.data.progress || 'Processing...', jobId })
 
         if (r.data.status === 'done' && r.data.result) {
