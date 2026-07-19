@@ -5,6 +5,8 @@ from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from backend.assistant import answer_officer_query
+
 import subprocess
 import sys
 import os
@@ -37,6 +39,11 @@ app.mount(
     StaticFiles(directory=os.path.join(os.path.dirname(__file__), '..', 'data', 'images')),
     name="images"
 )
+@app.post("/assistant/query")
+async def assistant_query(request: Request):
+    body = await request.json()
+    answer = answer_officer_query(body["text"], body.get("officer_id", "default_officer"))
+    return {"answer": answer}
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'flagged_zones.json')
 LIVE_ZONES_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'live_zones.json')

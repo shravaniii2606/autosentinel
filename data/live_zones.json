@@ -7454,5 +7454,32 @@
     "crane_present": false,
     "building_present": false,
     "container_present": false
+  },
+  {
+    "id": "live_3fad8d8c_0",
+    "lat": 19.416599,
+    "lon": 72.775857,
+    "area_sqm": 1100.0,
+    "severity": "LOW",
+    "risk_score": 14.0,
+    "action": "Log for routine inspection",
+    "violation_type": "UNVERIFIED_ZONE",
+    "bhuvan_land_type": "Unknown",
+    "bhuvan_confidence": "Low",
+    "bhuvan_overlap_percent": 0.0,
+    "bhuvan_source": "No land-use polygon intersected",
+    "osm_flags": [],
+    "legal_flags": [],
+    "risk_boost_total": 0.0,
+    "legal_explanation": "No legal violations detected from Bhuvan or OSM overlays.",
+    "microsoft_confirmed": false,
+    "construction_detected": true,
+    "vision_confidence": 0.0,
+    "objects_found": [],
+    "area_label": "Custom scanned area (19.4128, 72.7734) to (19.4242, 72.7803)",
+    "period_label": "2024 vs 2025",
+    "crane_present": false,
+    "building_present": false,
+    "container_present": false
   }
 ]

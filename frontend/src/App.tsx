@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { MapContainer, TileLayer, WMSTileLayer, CircleMarker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import axios from 'axios'
+import AssistantPanel from './AssistantPanel'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import 'leaflet-draw'
@@ -618,7 +619,7 @@ export default function App() {
 
       {/* Sidebar */}
       <div className="w-96 flex-shrink-0 bg-sky-50 border-r border-slate-200 flex flex-col overflow-y-auto">
-
+      <AssistantPanel />
         {/* Header */}
         <div className="p-5 border-b border-slate-200">
           <div className="flex items-center gap-2 mb-1">
