@@ -10,7 +10,7 @@ an AI assistant natural-language questions about any flagged zone.
 - Shravani Chaudhary
 - Mitanshi Khanna
 
-![AutoSentinel dashboard screenshot](<img width="1920" height="1080" alt="Screenshot (169)" src="https://github.com/user-attachments/assets/8a3c182c-ab28-4d77-ace0-417e35214867" />
+(<img width="1920" height="1080" alt="Screenshot (169)" src="https://github.com/user-attachments/assets/8a3c182c-ab28-4d77-ace0-417e35214867" />
 
 ## How it works
 
@@ -147,7 +147,8 @@ The dashboard expects the backend running at `http://localhost:8000`.
 - **Sentinel-2** surface reflectance imagery via **Google Earth Engine (GEE)**
 - **YOLO** object detection for vision-based construction verification
   (cranes, buildings, containers)
-- **OpenStreetMap (OSM)** (via Overpass API / OSMnx) for land-use and natural
+- **OpenStreetMap (OSM)** (via Overpass API / OSMnx) for land-use and natural   feature layers
+- **Microsoft Building Footprints** for structure verification
 
 ## Images
 <img width="1920" height="1080" alt="Screenshot (169)" src="https://github.com/user-attachments/assets/5170b9de-f880-44e7-a00e-517e35176330" />
@@ -158,5 +159,4 @@ The dashboard expects the backend running at `http://localhost:8000`.
 
 
 
-  feature layers
-- **Microsoft Building Footprints** for structure verification
+  
