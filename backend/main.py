@@ -1,11 +1,18 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, BackgroundTasks, Request
+from fastapi import FastAPI, BackgroundTasks, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from backend.assistant import answer_officer_query
+try:
+    from backend.assistant import answer_officer_query
+    assistant_import_error = None
+except Exception as exc:
+    # The map API must remain available when the optional AI-assistant SDKs or
+    # credentials have not been configured on a local development machine.
+    answer_officer_query = None
+    assistant_import_error = str(exc)
 
 import subprocess
 import sys
@@ -41,6 +48,11 @@ app.mount(
 )
 @app.post("/assistant/query")
 async def assistant_query(request: Request):
+    if answer_officer_query is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"AI assistant is not configured: {assistant_import_error}"
+        )
     body = await request.json()
     answer = answer_officer_query(body["text"], body.get("officer_id", "default_officer"))
     return {"answer": answer}
@@ -105,10 +117,7 @@ def mock_zone_details(zone):
     enriched["osm_flags"] = enriched.get("osm_flags") or [selected_violation, "CONSTRUCTION_ACTIVITY", "ROAD_BUFFER_REVIEW"]
     enriched["legal_flags"] = enriched.get("legal_flags") or list(enriched["osm_flags"])
     enriched["risk_boost_total"] = enriched.get("risk_boost_total") or round(18 + (seed % 18) + 0.5, 1)
-    enriched["legal_explanation"] = enriched.get("legal_explanation") or (
-        f"Mock assessment: {selected_land_type.lower()} overlaps active construction. "
-        "Land-use, infrastructure and permit checks require field verification."
-    )
+    enriched["legal_explanation"] = enriched.get("legal_explanation") or ""
     enriched["pre_vision_risk_score"] = enriched.get("pre_vision_risk_score") or enriched.get("risk_score", 75.0)
     enriched["vision_risk_boost"] = enriched.get("vision_risk_boost") or 12.5
     return enriched
@@ -447,6 +456,35 @@ def create_scan_job(bbox: dict, background_tasks: BackgroundTasks):
     }
     background_tasks.add_task(run_gee_pipeline, job_id, bbox)
     return {"job_id": job_id, "status": "processing"}
+
+
+def build_mock_scan_zones(job_id: str, bbox: dict):
+    """Return complete demo scan results when Earth Engine is not configured."""
+    west = float(bbox.get('minx', bbox.get('west')))
+    south = float(bbox.get('miny', bbox.get('south')))
+    east = float(bbox.get('maxx', bbox.get('east')))
+    north = float(bbox.get('maxy', bbox.get('north')))
+    width = east - west
+    height = north - south
+    area_label = f"Mock scanned area ({south:.4f}, {west:.4f}) to ({north:.4f}, {east:.4f})"
+    templates = [
+        ("CRITICAL", 96.0, 58500.0, 0.30, 0.32),
+        ("HIGH", 86.5, 24800.0, 0.62, 0.57),
+        ("MEDIUM", 73.2, 8100.0, 0.45, 0.76),
+    ]
+    return [normalize_zone({
+        "id": f"mock_scan_{job_id}_{index}",
+        "location_name": f"Mock satellite alert {index + 1}",
+        "lat": round(south + height * y_ratio, 6),
+        "lon": round(west + width * x_ratio, 6),
+        "bbox": {"minx": west, "miny": south, "maxx": east, "maxy": north},
+        "area_sqm": area_sqm,
+        "severity": severity,
+        "risk_score": risk_score,
+        "area_label": area_label,
+        "period_label": "January 2025 vs January 2026",
+    }) for index, (severity, risk_score, area_sqm, x_ratio, y_ratio) in enumerate(templates)]
+
 
 @app.get("/jobs/{job_id}")
 def get_job(job_id: str):
@@ -818,9 +856,19 @@ def run_gee_pipeline(job_id: str, bbox: dict):
         import traceback
         print(f"[JOB {job_id}] ERROR: {e}")
         traceback.print_exc()
-        JOBS[job_id]["status"] = "error"
-        JOBS[job_id]["error"] = str(e)
-        JOBS[job_id]["progress"] = f"Failed: {str(e)}"
+        error_text = str(e)
+        if "Earth Engine" in error_text or "service_account" in error_text or "REPLACE_ME" in error_text:
+            zones = build_mock_scan_zones(job_id, bbox)
+            JOBS[job_id]["status"] = "done"
+            JOBS[job_id]["progress"] = f"Demo scan complete — {len(zones)} mock zones found (Earth Engine is not configured)"
+            JOBS[job_id]["result"] = zones
+            JOBS[job_id]["error"] = None
+            save_live_zones(zones)
+            print(f"[JOB {job_id}] Returned {len(zones)} mock zones after Earth Engine configuration failure")
+        else:
+            JOBS[job_id]["status"] = "error"
+            JOBS[job_id]["error"] = error_text
+            JOBS[job_id]["progress"] = f"Failed: {error_text}"
 
 
 @app.get("/zones/{zone_id}/live-images")
