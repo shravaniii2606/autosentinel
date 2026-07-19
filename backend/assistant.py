@@ -14,14 +14,16 @@ llm_client = OpenAI(
 def answer_officer_query(query: str, officer_id: str) -> str:
     memories = mem0_client.search(query, filters={"user_id": officer_id})
     memory_text = "\n".join(m["memory"] for m in memories.get("results", memories) if isinstance(m, dict))
+    memory_text = memory_text[:500]  # cap memory context
 
     context_results = alchemyst_client.v1.context.search(
     query=query,
     similarity_threshold=0.5,
     minimum_similarity_threshold=0.3,
 )
-    context_text = "\n".join(c.content for c in getattr(context_results, "contexts", []))
-
+    contexts = getattr(context_results, "contexts", [])[:5]  # only top 5 matches, not all
+    context_text = "\n".join(c.content for c in contexts)
+    context_text = context_text[:1500] 
     system_prompt = (
         "You are AutoSentinel's AI assistant for field officers investigating "
         "illegal construction. Use the context below to give accurate, "
@@ -32,7 +34,7 @@ def answer_officer_query(query: str, officer_id: str) -> str:
 
     response = llm_client.chat.completions.create(
         model="anthropic/claude-sonnet-4.5",  # any OpenRouter model slug works here
-        max_tokens=500,
+        max_tokens=300,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query},

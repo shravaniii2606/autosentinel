@@ -18,7 +18,7 @@ export default function AssistantPanel() {
         officer_id: 'field_officer_1', // swap for real officer login id when auth exists
       })
       setAnswer(res.data.answer)
-      speak(res.data.answer)
+      
     } catch (err: any) {
       setAnswer('Error reaching assistant: ' + (err?.message ?? 'unknown error'))
     } finally {
