@@ -10,7 +10,7 @@ an AI assistant natural-language questions about any flagged zone.
 - Shravani Chaudhary
 - Mitanshi Khanna
 
-(<img width="1920" height="1080" alt="Screenshot (169)" src="https://github.com/user-attachments/assets/8a3c182c-ab28-4d77-ace0-417e35214867" />
+<img width="1920" height="1080" alt="Screenshot (169)" src="https://github.com/user-attachments/assets/8a3c182c-ab28-4d77-ace0-417e35214867" />
 
 ## How it works
 
