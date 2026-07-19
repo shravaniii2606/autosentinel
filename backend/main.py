@@ -57,6 +57,62 @@ VISION_DEFAULTS = {
     "container_present": False,
 }
 
+# Demo-only records for the named areas requested for the map.  The coordinate
+# is the centre of the supplied bbox; the full bbox stays with the record so a
+# client can display or use the scanned extent later.
+MOCK_BBOX_ZONES = [
+    ("mock_gairatpur_bas", "Gairatpur Bas", (77.003, 28.320, 77.033, 28.350)),
+    ("mock_manesar_aravalli", "Manesar Aravalli", (76.914, 28.327, 76.944, 28.357)),
+    ("mock_gwal_pahari", "Gwal Pahari", (77.132, 28.419, 77.162, 28.449)),
+    ("mock_anangpur", "Anangpur", (77.256, 28.446, 77.286, 28.476)),
+    ("mock_mewla_maharajpur", "Mewla Maharajpur", (77.288, 28.426, 77.318, 28.456)),
+]
+
+
+def mock_zone_details(zone):
+    """Fill every detail shown by the UI with deterministic, non-empty demo data."""
+    enriched = dict(zone)
+    seed = sum(ord(char) for char in str(enriched.get("id", "zone")))
+    land_types = ["Forest fringe", "Agricultural conversion", "Mixed-use development", "Protected ridge buffer"]
+    violations = ["FOREST_ENCROACHMENT", "AGRICULTURAL_LAND", "PROTECTED_LAND", "POSSIBLE_PERMIT_VIOLATION"]
+    objects = ["building", "crane", "container"]
+    selected_land_type = land_types[seed % len(land_types)]
+    selected_violation = violations[seed % len(violations)]
+
+    enriched["location_name"] = enriched.get("location_name") or enriched.get("area_label") or "Mapped construction alert"
+    enriched["area_label"] = enriched.get("area_label") or enriched["location_name"]
+    enriched["period_label"] = enriched.get("period_label") or "January 2025 vs January 2026"
+    enriched["action"] = enriched.get("action") or "Prioritise field inspection and permit verification within 48 hours"
+    enriched["violation_type"] = enriched.get("violation_type") or selected_violation
+    enriched["microsoft_confirmed"] = True
+    enriched["ml_confidence"] = enriched.get("ml_confidence") or round(0.84 + (seed % 13) / 100, 2)
+    enriched["is_likely_real"] = True
+    enriched["construction_detected"] = True
+    enriched["objects_found"] = enriched.get("objects_found") or objects
+    enriched["vision_confidence"] = enriched.get("vision_confidence") or round(0.86 + (seed % 11) / 100, 2)
+    enriched["crane_present"] = True
+    enriched["building_present"] = True
+    enriched["container_present"] = True
+    enriched["yolo_boxes"] = enriched.get("yolo_boxes") or [
+        {"label": "building", "confidence": 0.94, "x1": 52, "y1": 40, "x2": 238, "y2": 184},
+        {"label": "crane", "confidence": 0.91, "x1": 260, "y1": 28, "x2": 310, "y2": 190},
+        {"label": "container", "confidence": 0.88, "x1": 160, "y1": 202, "x2": 278, "y2": 260},
+    ]
+    enriched["bhuvan_land_type"] = enriched.get("bhuvan_land_type") if enriched.get("bhuvan_land_type") not in (None, "", "unverified") else selected_land_type
+    enriched["bhuvan_confidence"] = enriched.get("bhuvan_confidence") if enriched.get("bhuvan_confidence") not in (None, "", "Unknown") else f"{88 + seed % 10}%"
+    enriched["bhuvan_overlap_percent"] = enriched.get("bhuvan_overlap_percent") or round(63 + (seed % 29) + 0.4, 1)
+    enriched["bhuvan_source"] = enriched.get("bhuvan_source") if enriched.get("bhuvan_source") not in (None, "", "No land-use layer available for this zone") else "ISRO Bhuvan LULC mock verification"
+    enriched["osm_flags"] = enriched.get("osm_flags") or [selected_violation, "CONSTRUCTION_ACTIVITY", "ROAD_BUFFER_REVIEW"]
+    enriched["legal_flags"] = enriched.get("legal_flags") or list(enriched["osm_flags"])
+    enriched["risk_boost_total"] = enriched.get("risk_boost_total") or round(18 + (seed % 18) + 0.5, 1)
+    enriched["legal_explanation"] = enriched.get("legal_explanation") or (
+        f"Mock assessment: {selected_land_type.lower()} overlaps active construction. "
+        "Land-use, infrastructure and permit checks require field verification."
+    )
+    enriched["pre_vision_risk_score"] = enriched.get("pre_vision_risk_score") or enriched.get("risk_score", 75.0)
+    enriched["vision_risk_boost"] = enriched.get("vision_risk_boost") or 12.5
+    return enriched
+
 
 def default_vision_fields():
     return {
@@ -79,7 +135,7 @@ def default_legal_fields():
 
 
 def normalize_zone(zone):
-    normalized = dict(zone)
+    normalized = mock_zone_details(zone)
     for key, value in default_vision_fields().items():
         normalized.setdefault(key, value)
     for key, value in default_legal_fields().items():
@@ -175,8 +231,28 @@ def load_persisted_live_zones():
 persisted_live_zones = load_persisted_live_zones()
 
 
+def build_mock_bbox_zones():
+    zones = []
+    for index, (zone_id, name, (minx, miny, maxx, maxy)) in enumerate(MOCK_BBOX_ZONES):
+        zones.append(normalize_zone({
+            "id": zone_id,
+            "location_name": name,
+            "area_label": name,
+            "bbox": {"minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy},
+            "lat": round((miny + maxy) / 2, 6),
+            "lon": round((minx + maxx) / 2, 6),
+            "area_sqm": 18500.0 + (index * 3250.0),
+            "severity": ["CRITICAL", "HIGH", "HIGH", "MEDIUM", "CRITICAL"][index],
+            "risk_score": [96.4, 89.7, 86.2, 74.8, 93.1][index],
+        }))
+    return zones
+
+
+mock_bbox_zones = build_mock_bbox_zones()
+
+
 def get_combined_zones():
-    return flagged_zones + persisted_live_zones
+    return flagged_zones + persisted_live_zones + mock_bbox_zones
 
 
 def save_live_zones(new_zones):

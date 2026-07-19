@@ -11,6 +11,8 @@ import 'leaflet-draw'
 
 interface Zone {
   id: number | string
+  location_name?: string
+  bbox?: { minx: number, miny: number, maxx: number, maxy: number }
   lat: number
   lon: number
   area_sqm: number
@@ -810,6 +812,17 @@ export default function App() {
                 {selectedZone.violation_type.replace(/_/g, ' ')}
               </div>
 
+              <div className="mb-3 rounded bg-sky-50 border border-slate-200 p-3 text-xs space-y-1.5">
+                <div className="flex justify-between gap-3 text-slate-500">
+                  <span>Location</span>
+                  <span className="font-semibold text-slate-900 text-right">{selectedZone.location_name || selectedZone.area_label}</span>
+                </div>
+                <div className="text-slate-500">
+                  <span className="font-semibold text-slate-700">Recommended action: </span>
+                  {selectedZone.action}
+                </div>
+              </div>
+
               <div className="mb-3 space-y-2">
                 <div className="flex flex-wrap gap-1.5">
                   {selectedZone.construction_detected && (
@@ -877,6 +890,10 @@ export default function App() {
                     {selectedZone.risk_boost_total?.toFixed(1) ?? '0.0'}
                   </span>
                 </div>
+                <div className="text-slate-500">
+                  <span className="font-semibold text-slate-700">Assessment: </span>
+                  {selectedZone.legal_explanation}
+                </div>
               </div>
               {/* Details */}
               <div className="space-y-1.5 text-xs text-slate-500">
@@ -892,6 +909,12 @@ export default function App() {
                   <span className="text-slate-500">Zone ID</span>
                   <span>#{selectedZone.id}</span>
                 </div>
+                {selectedZone.bbox && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500">BBox (minX, minY, maxX, maxY)</span>
+                    <span className="text-right">{selectedZone.bbox.minx}, {selectedZone.bbox.miny}, {selectedZone.bbox.maxx}, {selectedZone.bbox.maxy}</span>
+                  </div>
+                )}
               </div>
 
              {/* Download report button */}
@@ -957,6 +980,8 @@ export default function App() {
             >
               <Popup>
                 <div style={{ fontSize: '12px', minWidth: '150px' }}>
+                  <strong>{zone.location_name || zone.area_label}</strong>
+                  <br />
                   <strong style={{ color: severityColor[zone.severity] }}>
                     {zone.severity}
                   </strong>
